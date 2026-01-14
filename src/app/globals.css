@@ -1,26 +1,26 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Base */
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: #020617;
+  color: #e5e7eb;
+}
+
+/* Cyber utilities (OK) */
+@layer utilities {
+  .matrix-bg {
+    background:
+      radial-gradient(circle at 15% 50%, rgba(37,99,235,.1), transparent 50%),
+      linear-gradient(180deg, #020617, #020617);
+  }
+
+  .cyber-glow {
+    box-shadow: 0 0 20px rgba(59,130,246,.5);
+  }
 }
