@@ -28,6 +28,7 @@ export default function PlayScenarioPage() {
   const { showNotification } = useNotification();
   
   const [scenario, setScenario] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
   const [score, setScore] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
@@ -35,13 +36,21 @@ export default function PlayScenarioPage() {
   const [showHint, setShowHint] = useState(false);
 
   useEffect(() => {
-    const found = scenarios.find(s => s.id === params.id);
-    if (found) {
-      setScenario(found);
-      showNotification(`Scénario démarré: ${found.title}`, 'info');
-    } else {
-      router.push('/scenarios');
-    }
+    const loadScenario = () => {
+      setIsLoading(true);
+      const found = scenarios.find(s => s.id === params.id);
+      
+      if (found) {
+        setScenario(found);
+        showNotification(`Scénario démarré: ${found.title}`, 'info');
+      } else {
+        showNotification('Scénario non trouvé', 'error');
+        router.push('/scenarios');
+      }
+      setIsLoading(false);
+    };
+
+    loadScenario();
   }, [params.id, router, showNotification]);
 
   useEffect(() => {
@@ -57,21 +66,23 @@ export default function PlayScenarioPage() {
     setScore(scenarioScore);
     setIsComplete(true);
     
-    // Enregistrer la progression
-    completeScenario(scenario.id, scenarioScore);
-    
-    // Notification
-    if (scenarioScore >= 80) {
-      showNotification('🎉 Excellent travail ! Score élevé', 'success');
-    } else if (scenarioScore >= 60) {
-      showNotification('👍 Bon travail, continuez comme ça !', 'info');
-    } else {
-      showNotification('💡 Analysez les conseils pour améliorer votre score', 'warning');
+    if (scenario) {
+      // Enregistrer la progression
+      completeScenario(scenario.id, scenarioScore);
+      
+      // Notification
+      if (scenarioScore >= 80) {
+        showNotification('🎉 Excellent travail ! Score élevé', 'success');
+      } else if (scenarioScore >= 60) {
+        showNotification('👍 Bon travail, continuez comme ça !', 'info');
+      } else {
+        showNotification('💡 Analysez les conseils pour améliorer votre score', 'warning');
+      }
     }
   };
 
   const handleNext = () => {
-    if (currentStep < scenario.data.steps?.length - 1) {
+    if (scenario && currentStep < scenario.data?.steps?.length - 1) {
       setCurrentStep(prev => prev + 1);
     }
   };
@@ -88,7 +99,8 @@ export default function PlayScenarioPage() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (!scenario) {
+  // Page de chargement
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -99,7 +111,32 @@ export default function PlayScenarioPage() {
     );
   }
 
+  // Page d'erreur si scénario non trouvé
+  if (!scenario) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-6">
+            <AlertTriangle className="w-10 h-10 text-red-400" />
+          </div>
+          <h2 className="text-2xl font-bold mb-4">Scénario non trouvé</h2>
+          <p className="text-gray-400 mb-8">
+            Le scénario que vous cherchez n'existe pas ou a été déplacé.
+          </p>
+          <CyberButton
+            variant="primary"
+            onClick={() => router.push('/scenarios')}
+          >
+            Retour aux scénarios
+          </CyberButton>
+        </div>
+      </div>
+    );
+  }
+
   const renderScenario = () => {
+    if (!scenario) return null;
+    
     switch(scenario.type) {
       case 'phishing':
         return <EmailSimulator scenario={scenario} onComplete={handleScenarioComplete} />;
@@ -108,7 +145,12 @@ export default function PlayScenarioPage() {
       case 'tailgating':
         return <OfficeScenario scenario={scenario} onComplete={handleScenarioComplete} />;
       default:
-        return <div>Type de scénario non supporté</div>;
+        return (
+          <div className="text-center py-12">
+            <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto mb-4" />
+            <p className="text-gray-400">Type de scénario non supporté</p>
+          </div>
+        );
     }
   };
 
@@ -291,19 +333,21 @@ export default function PlayScenarioPage() {
                 </div>
 
                 {/* Conseils */}
-                <div className="mt-8 pt-8 border-t border-gray-800">
-                  <h3 className="text-lg font-bold mb-4 text-center">
-                    Conseils pour améliorer votre score
-                  </h3>
-                  <ul className="space-y-2">
-                    {scenario.tips.slice(0, 3).map((tip: string, index: number) => (
-                      <li key={index} className="flex items-start gap-2">
-                        <div className="text-emerald-400 mt-1">✓</div>
-                        <span className="text-sm text-gray-300">{tip}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                {scenario.tips && (
+                  <div className="mt-8 pt-8 border-t border-gray-800">
+                    <h3 className="text-lg font-bold mb-4 text-center">
+                      Conseils pour améliorer votre score
+                    </h3>
+                    <ul className="space-y-2">
+                      {scenario.tips.slice(0, 3).map((tip: string, index: number) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <div className="text-emerald-400 mt-1">✓</div>
+                          <span className="text-sm text-gray-300">{tip}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </motion.div>
             </motion.div>
           )}

@@ -66,10 +66,10 @@ export function PhoneCallSimulator({ scenario, onComplete }: PhoneCallSimulatorP
         
         // Ajouter des messages au log selon la durée
         if (callDuration === 5) {
-          setCallLog(prev => [...prev, 'Caller: ' + scenario.call.pretext]);
+          setCallLog(prev => [...prev, 'Caller: ' + scenario.data.call.pretext]);
         }
         if (callDuration === 10) {
-          setCallLog(prev => [...prev, 'Caller: ' + scenario.call.request]);
+          setCallLog(prev => [...prev, 'Caller: ' + scenario.data.call.request]);
         }
         if (callDuration === 15) {
           setCallLog(prev => [...prev, 'Caller: "C\'est très urgent, je dois régler ça maintenant."']);
@@ -78,7 +78,7 @@ export function PhoneCallSimulator({ scenario, onComplete }: PhoneCallSimulatorP
       
       return () => clearInterval(timer);
     }
-  }, [callActive, callDuration, selectedAction, scenario.call]);
+  }, [callActive, callDuration, selectedAction, scenario.data.call]);
 
   const handleAction = (action: string) => {
     setSelectedAction(action);
@@ -102,7 +102,7 @@ export function PhoneCallSimulator({ scenario, onComplete }: PhoneCallSimulatorP
     // Afficher l'analyse après un délai
     setTimeout(() => {
       setShowAnalysis(true);
-      scenario.onComplete(calculatedScore, action);
+      onComplete(calculatedScore, action);
     }, 1500);
   };
 
@@ -137,12 +137,12 @@ export function PhoneCallSimulator({ scenario, onComplete }: PhoneCallSimulatorP
               <Phone className="w-7 h-7 text-white" />
             </div>
             <div>
-              <div className="text-2xl font-bold">{scenario.call.caller.name}</div>
-              <div className="text-gray-400">{scenario.call.caller.number}</div>
-              {scenario.call.caller.company && (
+              <div className="text-2xl font-bold">{scenario.data.call.caller.name}</div>
+              <div className="text-gray-400">{scenario.data.call.caller.number}</div>
+              {scenario.data.call.caller.company && (
                 <div className="text-sm text-gray-500 flex items-center gap-1">
                   <Building className="w-3 h-3" />
-                  {scenario.call.caller.company}
+                  {scenario.data.call.caller.company}
                 </div>
               )}
             </div>
@@ -170,7 +170,7 @@ export function PhoneCallSimulator({ scenario, onComplete }: PhoneCallSimulatorP
                 <div className="flex items-center gap-2 mb-1">
                   {index >= 3 && <User className="w-4 h-4 text-blue-400" />}
                   <span className="text-sm text-gray-400">
-                    {index >= 3 ? scenario.call.caller.name : 'Système'}
+                    {index >= 3 ? scenario.data.call.caller.name : 'Système'}
                   </span>
                 </div>
                 <p className="text-white">{message}</p>
@@ -232,15 +232,15 @@ export function PhoneCallSimulator({ scenario, onComplete }: PhoneCallSimulatorP
         <div className="mt-8 pt-8 border-t border-gray-800">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${getToneColor(scenario.call.tone)}`}>
+              <div className={`p-2 rounded-lg ${getToneColor(scenario.data.call.tone)}`}>
                 <AlertTriangle className="w-4 h-4" />
               </div>
               <div>
                 <div className="text-sm text-gray-400">Ton</div>
                 <div className="font-medium">
-                  {scenario.call.tone === 'urgent' ? 'Urgent' :
-                   scenario.call.tone === 'authoritative' ? 'Autoritaire' :
-                   scenario.call.tone === 'helpful' ? 'Serviable' : 'Amiable'}
+                  {scenario.data.call.tone === 'urgent' ? 'Urgent' :
+                   scenario.data.call.tone === 'authoritative' ? 'Autoritaire' :
+                   scenario.data.call.tone === 'helpful' ? 'Serviable' : 'Amiable'}
                 </div>
               </div>
             </div>
@@ -256,13 +256,13 @@ export function PhoneCallSimulator({ scenario, onComplete }: PhoneCallSimulatorP
             </div>
             
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${scenario.call.caller.spoofed ? 'bg-red-400/10 text-red-400' : 'bg-emerald-400/10 text-emerald-400'}`}>
-                {scenario.call.caller.spoofed ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+              <div className={`p-2 rounded-lg ${scenario.data.call.caller.spoofed ? 'bg-red-400/10 text-red-400' : 'bg-emerald-400/10 text-emerald-400'}`}>
+                {scenario.data.call.caller.spoofed ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
               </div>
               <div>
                 <div className="text-sm text-gray-400">Numéro</div>
                 <div className="font-medium">
-                  {scenario.call.caller.spoofed ? 'Usurpé' : 'Authentique'}
+                  {scenario.data.call.caller.spoofed ? 'Usurpé' : 'Authentique'}
                 </div>
               </div>
             </div>
@@ -372,7 +372,7 @@ export function PhoneCallSimulator({ scenario, onComplete }: PhoneCallSimulatorP
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {scenario.redFlags.map((flag, index) => (
+                {scenario.redFlags?.map((flag, index) => (
                   <motion.div
                     key={index}
                     initial={{ opacity: 0, x: -20 }}

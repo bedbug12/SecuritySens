@@ -107,7 +107,7 @@ export function QRCodeScanner({ scenario, onComplete}: QRCodeScannerProps) {
     // Afficher l'analyse après un délai
     setTimeout(() => {
       setShowAnalysis(true);
-      scenario.onComplete(calculatedScore, action);
+      onComplete(calculatedScore, action);
     }, 1500);
   };
 
@@ -215,7 +215,7 @@ export function QRCodeScanner({ scenario, onComplete}: QRCodeScannerProps) {
                 <div className="text-center">
                   <div className="inline-block px-4 py-2 bg-yellow-400/10 border border-yellow-400/30 rounded-lg">
                     <p className="text-yellow-300 text-sm font-medium">
-                      "{scenario.qrCode.context.message}"
+                      "{scenario.data.qrCode.context.message}"
                     </p>
                   </div>
                 </div>
@@ -225,7 +225,7 @@ export function QRCodeScanner({ scenario, onComplete}: QRCodeScannerProps) {
               <div className="absolute bottom-4 left-4">
                 <AlertBadge 
                   type="info" 
-                  message={`Lieu: ${scenario.qrCode.context.location}`}
+                  message={`Lieu: ${scenario.data.qrCode.context.location}`}
                   size="sm"
                 />
               </div>
@@ -240,9 +240,9 @@ export function QRCodeScanner({ scenario, onComplete}: QRCodeScannerProps) {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {[
-                  { id: 'appearance', text: `Apparence: ${scenario.qrCode.context.appearance}` },
-                  { id: 'location', text: `Position: ${scenario.qrCode.context.location}` },
-                  { id: 'message', text: `Message: ${scenario.qrCode.context.message}` },
+                  { id: 'appearance', text: `Apparence: ${scenario.data.qrCode.context.appearance}` },
+                  { id: 'location', text: `Position: ${scenario.data.qrCode.context.location}` },
+                  { id: 'message', text: `Message: ${scenario.data.qrCode.context.message}` },
                   { id: 'sticky', text: 'Collé avec de l\'adhésif bon marché' }
                 ].map((item) => {
                   const isSuspicious = isSuspiciousElement(item.text);
@@ -359,15 +359,15 @@ export function QRCodeScanner({ scenario, onComplete}: QRCodeScannerProps) {
                         <div>
                           <div className="text-sm text-gray-400 mb-1">URL détectée :</div>
                           <div className="p-3 bg-gray-900/50 rounded-lg font-mono text-sm break-all">
-                            {scenario.qrCode.scanResult.url}
+                            {scenario.data.qrCode.scanResult.url}
                           </div>
                         </div>
                         
-                        {scenario.qrCode.scanResult.redirectsTo && (
+                        {scenario.data.qrCode.scanResult.redirectsTo && (
                           <div>
                             <div className="text-sm text-gray-400 mb-1">Redirige vers :</div>
                             <div className="p-3 bg-gray-900/50 rounded-lg font-mono text-sm break-all">
-                              {scenario.qrCode.scanResult.redirectsTo}
+                              {scenario.data.qrCode.scanResult.redirectsTo}
                             </div>
                           </div>
                         )}
@@ -375,7 +375,7 @@ export function QRCodeScanner({ scenario, onComplete}: QRCodeScannerProps) {
                         <div>
                           <div className="text-sm text-gray-400 mb-2">Permissions demandées :</div>
                           <div className="space-y-2">
-                            {scenario.qrCode.scanResult.permissions.map((permission, index) => (
+                            {scenario.data.qrCode.scanResult.permissions?.map((permission:string, index:number) => (
                               <div key={index} className="flex items-center gap-2 p-2 bg-gray-900/30 rounded">
                                 <div className={`w-2 h-2 rounded-full ${
                                   permission.includes('contacts') || 
@@ -399,24 +399,24 @@ export function QRCodeScanner({ scenario, onComplete}: QRCodeScannerProps) {
                         </div>
                         
                         <div className={`p-3 rounded-lg ${
-                          scenario.qrCode.scanResult.legitimacy
+                          scenario.data.qrCode.scanResult.legitimacy
                             ? 'bg-emerald-400/10 border border-emerald-400/30'
                             : 'bg-red-400/10 border border-red-400/30'
                         }`}>
                           <div className="flex items-center gap-2 mb-1">
-                            {scenario.qrCode.scanResult.legitimacy ? (
+                            {scenario.data.qrCode.scanResult.legitimacy ? (
                               <CheckCircle className="w-5 h-5 text-emerald-400" />
                             ) : (
                               <XCircle className="w-5 h-5 text-red-400" />
                             )}
                             <div className="font-medium">
-                              {scenario.qrCode.scanResult.legitimacy 
+                              {scenario.data.qrCode.scanResult.legitimacy 
                                 ? 'Site légitime' 
                                 : 'Site potentiellement malveillant'}
                             </div>
                           </div>
                           <p className="text-sm text-gray-300">
-                            {scenario.qrCode.scanResult.legitimacy
+                            {scenario.data.qrCode.scanResult.legitimacy
                               ? 'Ce site semble officiel et sécurisé'
                               : 'Attention : ce site demande des permissions excessives'}
                           </p>

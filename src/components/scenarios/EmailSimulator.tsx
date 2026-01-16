@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { AlertBadge } from '@/components/ui/AlertBadge';
 import { ConsequenceDisplay } from '@/components/feedback/ConsequenceDisplay';
+import { EmailAttachments, EmailLink } from '@/lib/types';
 
 interface EmailSimulatorProps {
   scenario: {
@@ -92,7 +93,7 @@ export function EmailSimulator({ scenario, onComplete }: EmailSimulatorProps) {
     // Afficher l'analyse après un délai
     setTimeout(() => {
       setShowAnalysis(true);
-      scenario.onComplete(calculatedScore, action);
+      onComplete(calculatedScore, action);
     }, 1500);
   };
 
@@ -157,25 +158,25 @@ export function EmailSimulator({ scenario, onComplete }: EmailSimulatorProps) {
                     className={`font-semibold cursor-help ${highlightedElements.includes('sender') ? 'text-red-400 underline' : 'text-white'}`}
                     onClick={() => toggleHighlight('sender')}
                   >
-                    {scenario.email.from.name}
+                    {scenario.data.email.from.name}
                   </span>
                   {highlightedElements.includes('sender') && (
                     <AlertBadge type="error" message="Expéditeur suspect" size="sm" />
                   )}
                 </div>
-                <div className="text-sm text-gray-400">{scenario.email.from.email}</div>
+                <div className="text-sm text-gray-400">{scenario.data.email.from.email}</div>
               </div>
             </div>
             
-            <div className={`px-3 py-1 rounded-full text-xs font-medium ${getUrgencyColor(scenario.email.urgencyLevel)}`}>
-              {scenario.email.urgencyLevel === 'high' ? 'URGENT' :
-               scenario.email.urgencyLevel === 'medium' ? 'IMPORTANT' : 'NORMAL'}
+            <div className={`px-3 py-1 rounded-full text-xs font-medium ${getUrgencyColor(scenario.data.email.urgencyLevel)}`}>
+              {scenario.data.email.urgencyLevel === 'high' ? 'URGENT' :
+               scenario.data.email.urgencyLevel === 'medium' ? 'IMPORTANT' : 'NORMAL'}
             </div>
           </div>
           
           <div className="mb-2">
             <div className="text-sm text-gray-400 mb-1">À :</div>
-            <div className="text-gray-300">{scenario.email.to}</div>
+            <div className="text-gray-300">{scenario.data.email.to}</div>
           </div>
           
           <div className="mb-2">
@@ -184,7 +185,7 @@ export function EmailSimulator({ scenario, onComplete }: EmailSimulatorProps) {
               className={`text-lg font-semibold cursor-help ${highlightedElements.includes('subject') ? 'text-amber-400 underline' : 'text-white'}`}
               onClick={() => toggleHighlight('subject')}
             >
-              {scenario.email.subject}
+              {scenario.data.email.subject}
             </div>
             {highlightedElements.includes('subject') && (
               <AlertBadge type="warning" message="Objet alarmiste" size="sm" />
@@ -200,15 +201,15 @@ export function EmailSimulator({ scenario, onComplete }: EmailSimulatorProps) {
         <div className="p-6">
           <div 
             className="prose prose-invert max-w-none mb-6"
-            dangerouslySetInnerHTML={{ __html: scenario.email.body }}
+            dangerouslySetInnerHTML={{ __html: scenario.data.email.body }}
           />
           
           {/* Links */}
-          {scenario.email.links && scenario.email.links.length > 0 && (
+          {scenario.data.email.links && scenario.data.email.links.length > 0 && (
             <div className="mb-6">
               <div className="text-sm text-gray-400 mb-3">Liens dans l'email :</div>
               <div className="space-y-2">
-                {scenario.email.links.map((link, index) => (
+                {scenario.data.email.links?.map((link: EmailLink, index:number) => (
                   <motion.div
                     key={index}
                     initial={{ opacity: 0, x: -20 }}
@@ -236,11 +237,11 @@ export function EmailSimulator({ scenario, onComplete }: EmailSimulatorProps) {
           )}
           
           {/* Attachments */}
-          {scenario.email.attachments && scenario.email.attachments.length > 0 && (
+          {scenario.data.email.attachments && scenario.data.email.attachments.length > 0 && (
             <div>
               <div className="text-sm text-gray-400 mb-3">Pièces jointes :</div>
               <div className="space-y-2">
-                {scenario.email.attachments.map((attachment, index) => (
+                {scenario.data.email.attachments?.map((attachment:EmailAttachments, index:number) => (
                   <motion.div
                     key={index}
                     initial={{ opacity: 0, x: -20 }}
@@ -383,7 +384,7 @@ export function EmailSimulator({ scenario, onComplete }: EmailSimulatorProps) {
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {scenario.redFlags.map((flag, index) => (
+                {scenario.redFlags?.map((flag, index) => (
                   <motion.div
                     key={index}
                     initial={{ opacity: 0, x: -20 }}

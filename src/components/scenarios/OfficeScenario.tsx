@@ -93,7 +93,7 @@ export function OfficeScenario({ scenario, onComplete }: OfficeScenarioProps) {
     // Afficher l'analyse après un délai
     setTimeout(() => {
       setShowAnalysis(true);
-      scenario.onComplete(calculatedScore, action);
+      onComplete(calculatedScore, action);
     }, 1500);
   };
 
@@ -119,12 +119,12 @@ export function OfficeScenario({ scenario, onComplete }: OfficeScenarioProps) {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold mb-2">{scenario.title}</h2>
-            <p className="text-gray-400">{scenario.situation.context}</p>
+            <p className="text-gray-400">{scenario.data.situation.context}</p>
           </div>
           
           <div className="flex items-center gap-2">
             <Clock className="w-5 h-5 text-gray-400" />
-            <span className="text-gray-400">{scenario.situation.time}</span>
+            <span className="text-gray-400">{scenario.data.situation.time}</span>
           </div>
         </div>
         
@@ -135,7 +135,7 @@ export function OfficeScenario({ scenario, onComplete }: OfficeScenarioProps) {
               <Building className="w-5 h-5 text-blue-400" />
               <div className="font-medium">Lieu</div>
             </div>
-            <p className="text-gray-300">{scenario.situation.location}</p>
+            <p className="text-gray-300">{scenario.data.situation.location}</p>
           </div>
           
           {/* Person Description */}
@@ -144,7 +144,7 @@ export function OfficeScenario({ scenario, onComplete }: OfficeScenarioProps) {
               <User className="w-5 h-5 text-purple-400" />
               <div className="font-medium">Description</div>
             </div>
-            <p className="text-gray-300">{scenario.situation.person.appearance}</p>
+            <p className="text-gray-300">{scenario.data.situation.person.appearance}</p>
           </div>
           
           {/* Behavior */}
@@ -153,7 +153,7 @@ export function OfficeScenario({ scenario, onComplete }: OfficeScenarioProps) {
               <AlertTriangle className="w-5 h-5 text-amber-400" />
               <div className="font-medium">Comportement</div>
             </div>
-            <p className="text-gray-300">{scenario.situation.person.behavior}</p>
+            <p className="text-gray-300">{scenario.data.situation.person.behavior}</p>
           </div>
         </div>
       </motion.div>
@@ -197,7 +197,7 @@ export function OfficeScenario({ scenario, onComplete }: OfficeScenarioProps) {
                   
                   {/* Speech bubble */}
                   <div className="absolute -top-16 -left-32 bg-gray-800 rounded-xl p-4 border border-gray-700 max-w-xs">
-                    <p className="text-sm text-white">{scenario.situation.person.story}</p>
+                    <p className="text-sm text-white">{scenario.data.situation.person.story}</p>
                     <div className="absolute bottom-0 left-1/2 transform translate-x-6 translate-y-1/2 rotate-45 w-4 h-4 bg-gray-800 border-r border-b border-gray-700" />
                   </div>
                 </motion.div>
@@ -226,7 +226,7 @@ export function OfficeScenario({ scenario, onComplete }: OfficeScenarioProps) {
             </h3>
             
             <div className="space-y-4 mb-8">
-              {scenario.situation.person.items.map((item, index) => {
+              {scenario.data.situation.person.items?.map((item: string, index:number) => {
                 const suspicious = isSuspiciousItem(item);
                 const isObserved = observations.includes(`item-${index}`);
                 
@@ -285,7 +285,7 @@ export function OfficeScenario({ scenario, onComplete }: OfficeScenarioProps) {
             <div className="text-center">
               <div className="text-sm text-gray-400 mb-2">Observations notées</div>
               <div className="text-3xl font-bold text-emerald-400">
-                {observations.length}/{scenario.situation.person.items.length}
+                {observations.length}/{scenario.data.situation.person.items.length}
               </div>
             </div>
           </div>

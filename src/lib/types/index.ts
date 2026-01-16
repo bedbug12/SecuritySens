@@ -319,3 +319,18 @@ export interface NotificationItem {
 }
 
 // ... reste du fichier ...
+
+
+export interface EmailLink {
+  text: string;
+  url: string;
+  malicious: boolean;
+}
+
+export interface EmailAttachments {
+      name: string;
+      size: string;
+      type: string;
+      malicious: boolean;
+}
+  
