@@ -13,7 +13,8 @@ import {
   Mail,
   Phone,
   User,
-  Lock
+  Lock,
+  QrCode
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { CyberButton } from '@/components/ui/CyberButton';
@@ -63,6 +64,7 @@ export default function ScenariosPage() {
     { id: 'vishing', label: 'Vishing', icon: <Phone className="w-4 h-4" />, count: scenarios.filter(s => s.type === 'vishing').length },
     { id: 'pretexting', label: 'Pretexting', icon: <User className="w-4 h-4" />, count: scenarios.filter(s => s.type === 'pretexting').length },
     { id: 'tailgating', label: 'Tailgating', icon: <Lock className="w-4 h-4" />, count: scenarios.filter(s => s.type === 'tailgating').length },
+    { id: 'qr', label: 'QR Code', icon: <QrCode className="w-4 h-4" />, count: scenarios.filter(s => s.type === 'qr').length },
   ];
 
   const difficultyLevels = [

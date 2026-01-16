@@ -118,8 +118,14 @@ export interface QRData {
     url: string;
     permissions: string[];
     legitimacy: boolean;
+    redirectsTo?: string;
+    asksFor?: string[];
   };
-  redFlags: string[];
+  redFlags: Array<{
+    type: string;
+    description: string;
+    severity: 'low' | 'medium' | 'high' | 'critical';
+  }>;
   correctAction: 'scan' | 'ignore' | 'report' | 'verify';
 }
 

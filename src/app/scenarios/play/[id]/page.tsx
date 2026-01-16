@@ -17,6 +17,7 @@ import { scenarios } from '@/lib/data/scenarios';
 import { EmailSimulator } from '@/components/scenarios/EmailSimulator';
 import { PhoneCallSimulator } from '@/components/scenarios/PhoneCallSimulator';
 import { OfficeScenario } from '@/components/scenarios/OfficeScenario';
+import { QRCodeScanner } from '@/components/scenarios/QRCodeScanner';
 import { useProgress } from '@/lib/contexts/ProgressContext';
 import { useNotification } from '@/components/feedback/NotificationProvider';
 import { CyberButton } from '@/components/ui/CyberButton';
@@ -144,6 +145,8 @@ export default function PlayScenarioPage() {
         return <PhoneCallSimulator scenario={scenario} onComplete={handleScenarioComplete} />;
       case 'tailgating':
         return <OfficeScenario scenario={scenario} onComplete={handleScenarioComplete} />;
+      case 'qr':
+        return <QRCodeScanner scenario={scenario} onComplete={handleScenarioComplete} />;
       default:
         return (
           <div className="text-center py-12">

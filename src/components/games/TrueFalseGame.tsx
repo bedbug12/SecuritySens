@@ -21,7 +21,7 @@ export function TrueFalseGame({ onAnswer }: TrueFalseGameProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(10);
+  const [timeLeft, setTimeLeft] = useState(30);
   const [showFeedback, setShowFeedback] = useState(false);
   const [gameStats, setGameStats] = useState({
     correct: 0,
@@ -79,7 +79,7 @@ export function TrueFalseGame({ onAnswer }: TrueFalseGameProps) {
     if (currentQuestionIndex < quizQuestions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
       setSelectedAnswer(null);
-      setTimeLeft(10);
+      setTimeLeft(30);
       setShowFeedback(false);
     } else {
       // Fin du jeu

@@ -141,7 +141,7 @@ export function MailInboxSimulator({ onAnswer }: MailInboxSimulatorProps) {
 
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
   const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(120);
+  const [timeLeft, setTimeLeft] = useState(180);
   const [gameComplete, setGameComplete] = useState(false);
   const [filter, setFilter] = useState<'all' | 'phishing' | 'legitimate'>('all');
   const [showDetails, setShowDetails] = useState<string | null>(null);
@@ -260,7 +260,7 @@ export function MailInboxSimulator({ onAnswer }: MailInboxSimulatorProps) {
           
           <div className="bg-gray-900/50 rounded-xl p-6 text-center">
             <div className="text-3xl font-bold text-blue-400 mb-2">
-              {formatTime(120 - timeLeft)}
+              {formatTime(180 - timeLeft)}
             </div>
             <div className="text-gray-400">Temps utilisé</div>
           </div>

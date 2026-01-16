@@ -23,7 +23,7 @@ export function SpotTheSigns({ onAnswer }: SpotTheSignsProps) {
   const [currentScenarioIndex, setCurrentScenarioIndex] = useState(0);
   const [selectedSigns, setSelectedSigns] = useState<string[]>([]);
   const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(45);
+  const [timeLeft, setTimeLeft] = useState(60);
   const [gameComplete, setGameComplete] = useState(false);
   const [hintUsed, setHintUsed] = useState(false);
 
@@ -87,7 +87,7 @@ export function SpotTheSigns({ onAnswer }: SpotTheSignsProps) {
       setTimeout(() => {
         setCurrentScenarioIndex(prev => prev + 1);
         setSelectedSigns([]);
-        setTimeLeft(45);
+        setTimeLeft(60);
         setHintUsed(false);
       }, 2000);
     } else {

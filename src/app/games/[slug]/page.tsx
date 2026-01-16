@@ -29,7 +29,7 @@ export default function GamePage() {
   const [game, setGame] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(180); // 3 minutes
+  const [timeLeft, setTimeLeft] = useState(520); // 3 minutes
   const [showResults, setShowResults] = useState(false);
 
   useEffect(() => {
