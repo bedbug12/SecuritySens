@@ -2,9 +2,11 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useSession } from 'next-auth/react';
 
 // Types
 interface UserProgress {
+  id?: string;
   level: number;
   xp: number;
   vigilanceScore: number;
@@ -13,17 +15,19 @@ interface UserProgress {
   gamesPlayed: number;
   consecutiveCorrect: number;
   lastPlayed: Date | null;
+  userId?: string;
 }
 
 interface ProgressContextType {
   userProgress: UserProgress;
-  completeScenario: (scenarioId: string, score: number) => void;
-  completeGame: (score: number) => void;
-  addBadge: (badgeId: string) => void;
-  resetProgress: () => void;
-  updateVigilanceScore: (newScore: number) => void;
+  completeScenario: (scenarioId: string, score: number, timeSpent?: number) => Promise<void>;
+  completeGame: (score: number) => Promise<void>;
+  addBadge: (badgeId: string) => Promise<void>;
+  resetProgress: () => Promise<void>;
+  updateVigilanceScore: (newScore: number) => Promise<void>;
   getProgressPercentage: () => number;
   getLevelProgress: () => { level: number; progress: number; xpToNext: number };
+  isLoading: boolean;
 }
 
 // Valeur par défaut
@@ -41,13 +45,14 @@ const defaultProgress: UserProgress = {
 // Création du contexte
 export const ProgressContext = createContext<ProgressContextType>({
   userProgress: defaultProgress,
-  completeScenario: () => {},
-  completeGame: () => {},
-  addBadge: () => {},
-  resetProgress: () => {},
-  updateVigilanceScore: () => {},
+  completeScenario: async () => {},
+  completeGame: async () => {},
+  addBadge: async () => {},
+  resetProgress: async () => {},
+  updateVigilanceScore: async () => {},
   getProgressPercentage: () => 0,
-  getLevelProgress: () => ({ level: 1, progress: 0, xpToNext: 100 })
+  getLevelProgress: () => ({ level: 1, progress: 0, xpToNext: 100 }),
+  isLoading: true
 });
 
 // Props pour le provider
@@ -57,33 +62,98 @@ interface ProgressProviderProps {
 
 // Provider principal
 export function ProgressProvider({ children }: ProgressProviderProps) {
-  const [userProgress, setUserProgress] = useState<UserProgress>(() => {
-    // Charger depuis localStorage si disponible
-    if (typeof window === 'undefined') return defaultProgress;
-    
+  const { data: session, status } = useSession();
+  const [userProgress, setUserProgress] = useState<UserProgress>(defaultProgress);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Charger la progression depuis l'API
+  useEffect(() => {
+    const loadUserProgress = async () => {
+      setIsLoading(true);
+      
+      if (status === 'authenticated' && session?.user?.id) {
+        try {
+          // Charger depuis l'API
+          const response = await fetch('/api/user/progress');
+          if (response.ok) {
+            const data = await response.json();
+            setUserProgress(data);
+          } else {
+            // Créer une progression si elle n'existe pas
+            await initializeUserProgress();
+          }
+        } catch (error) {
+          console.error('Error loading progress:', error);
+          // Fallback sur localStorage pour les tests
+          loadFromLocalStorage();
+        }
+      } else if (status === 'unauthenticated') {
+        // Mode invité - utiliser localStorage
+        loadFromLocalStorage();
+      }
+      
+      setIsLoading(false);
+    };
+
+    loadUserProgress();
+  }, [session, status]);
+
+  // Charger depuis localStorage (mode invité)
+  const loadFromLocalStorage = () => {
     try {
-      const saved = localStorage.getItem('security-sense-progress');
+      const saved = localStorage.getItem('security-sense-progress-guest');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Convertir la date string en Date object
         if (parsed.lastPlayed && typeof parsed.lastPlayed === 'string') {
           parsed.lastPlayed = new Date(parsed.lastPlayed);
         }
-        return parsed;
+        setUserProgress(parsed);
       }
     } catch (error) {
-      console.error('Error loading progress from localStorage:', error);
+      console.error('Error loading guest progress:', error);
     }
-    
-    return defaultProgress;
-  });
+  };
 
-  // Sauvegarder dans localStorage à chaque changement
-  useEffect(() => {
-    localStorage.setItem('security-sense-progress', JSON.stringify(userProgress));
-  }, [userProgress]);
+  // Initialiser la progression utilisateur
+  const initializeUserProgress = async () => {
+    if (!session?.user?.id) return;
 
-  // Calculer le nouveau score de vigilance (moyenne mobile)
+    try {
+      const response = await fetch('/api/user/progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(defaultProgress),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUserProgress(data);
+      }
+    } catch (error) {
+      console.error('Error initializing progress:', error);
+    }
+  };
+
+  // Sauvegarder la progression
+  const saveProgress = async (progress: UserProgress) => {
+    if (session?.user?.id) {
+      // Sauvegarder sur l'API
+      try {
+        await fetch('/api/user/progress', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(progress),
+        });
+      } catch (error) {
+        console.error('Error saving progress to API:', error);
+      }
+    } else {
+      // Mode invité - sauvegarder dans localStorage
+      localStorage.setItem('security-sense-progress-guest', JSON.stringify(progress));
+    }
+  };
+
+  // Calculer le nouveau score de vigilance
   const calculateNewVigilanceScore = (currentScore: number, newScore: number): number => {
     return Math.round((currentScore * 0.7) + (newScore * 0.3));
   };
@@ -132,81 +202,113 @@ export function ProgressProvider({ children }: ProgressProviderProps) {
   };
 
   // Compléter un scénario
-  const completeScenario = (scenarioId: string, score: number) => {
-    setUserProgress(prev => {
-      const newCompleted = [...prev.completedScenarios, scenarioId];
-      const newVigilanceScore = calculateNewVigilanceScore(prev.vigilanceScore, score);
-      const newConsecutive = score >= 80 ? prev.consecutiveCorrect + 1 : 0;
-      const xpGained = Math.round(score / 10);
-      const newXp = prev.xp + xpGained;
-      const newLevel = Math.floor(newXp / 100) + 1;
+  const completeScenario = async (scenarioId: string, score: number, timeSpent?: number) => {
+    const newProgress = { ...userProgress };
+    
+    // Mettre à jour la progression locale
+    newProgress.completedScenarios = [...new Set([...newProgress.completedScenarios, scenarioId])];
+    newProgress.vigilanceScore = Math.min(100, Math.max(0, 
+      calculateNewVigilanceScore(newProgress.vigilanceScore, score)
+    ));
+    newProgress.consecutiveCorrect = score >= 80 ? newProgress.consecutiveCorrect + 1 : 0;
+    newProgress.xp += Math.round(score / 10);
+    newProgress.level = Math.floor(newProgress.xp / 100) + 1;
+    newProgress.lastPlayed = new Date();
 
-      // Vérifier les nouveaux badges
-      const unlockedBadges = checkBadgeUnlocks(
-        {
-          ...prev,
-          completedScenarios: newCompleted,
-          consecutiveCorrect: newConsecutive,
-          vigilanceScore: newVigilanceScore
-        },
-        score
-      );
+    // Vérifier les badges
+    const unlockedBadges = checkBadgeUnlocks(newProgress, score);
+    newProgress.badges = [...new Set([...newProgress.badges, ...unlockedBadges])];
 
-      const newBadges = [...prev.badges, ...unlockedBadges.filter(b => !prev.badges.includes(b))];
+    // Sauvegarder le score du scénario
+    if (session?.user?.id) {
+      try {
+        await fetch('/api/user/scenario-score', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scenarioId,
+            score,
+            timeSpent: timeSpent || 0
+          }),
+        });
+      } catch (error) {
+        console.error('Error saving scenario score:', error);
+      }
+    }
 
-      return {
-        ...prev,
-        level: newLevel,
-        xp: newXp,
-        vigilanceScore: Math.min(100, Math.max(0, newVigilanceScore)),
-        completedScenarios: newCompleted,
-        badges: newBadges,
-        consecutiveCorrect: newConsecutive,
-        lastPlayed: new Date()
-      };
-    });
+    // Mettre à jour l'état local
+    setUserProgress(newProgress);
+    
+    // Sauvegarder la progression
+    await saveProgress(newProgress);
   };
 
   // Compléter un jeu
-  const completeGame = (score: number) => {
-    setUserProgress(prev => ({
-      ...prev,
-      gamesPlayed: prev.gamesPlayed + 1,
-      xp: prev.xp + Math.round(score / 20),
+  const completeGame = async (score: number) => {
+    const newProgress = {
+      ...userProgress,
+      gamesPlayed: userProgress.gamesPlayed + 1,
+      xp: userProgress.xp + Math.round(score / 20),
       lastPlayed: new Date()
-    }));
+    };
+
+    setUserProgress(newProgress);
+    await saveProgress(newProgress);
   };
 
   // Ajouter un badge manuellement
-  const addBadge = (badgeId: string) => {
-    setUserProgress(prev => ({
-      ...prev,
-      badges: prev.badges.includes(badgeId) ? prev.badges : [...prev.badges, badgeId]
-    }));
+  const addBadge = async (badgeId: string) => {
+    if (userProgress.badges.includes(badgeId)) return;
+
+    const newProgress = {
+      ...userProgress,
+      badges: [...userProgress.badges, badgeId]
+    };
+
+    setUserProgress(newProgress);
+    await saveProgress(newProgress);
   };
 
   // Réinitialiser la progression
-  const resetProgress = () => {
-    setUserProgress(defaultProgress);
+  const resetProgress = async () => {
+    const confirmReset = window.confirm('Êtes-vous sûr de vouloir réinitialiser votre progression ?');
+    if (!confirmReset) return;
+
+    const resetProgress = { ...defaultProgress };
+    
+    if (session?.user?.id) {
+      try {
+        await fetch('/api/user/reset-progress', { method: 'POST' });
+      } catch (error) {
+        console.error('Error resetting progress:', error);
+      }
+    } else {
+      localStorage.removeItem('security-sense-progress-guest');
+    }
+
+    setUserProgress(resetProgress);
   };
 
   // Mettre à jour le score de vigilance
-  const updateVigilanceScore = (newScore: number) => {
-    setUserProgress(prev => ({
-      ...prev,
+  const updateVigilanceScore = async (newScore: number) => {
+    const newProgress = {
+      ...userProgress,
       vigilanceScore: Math.min(100, Math.max(0, newScore))
-    }));
+    };
+
+    setUserProgress(newProgress);
+    await saveProgress(newProgress);
   };
 
   // Obtenir le pourcentage de progression global
   const getProgressPercentage = (): number => {
-    const maxPossible = 100; // Score max de vigilance
+    const maxPossible = 100;
     return Math.round((userProgress.vigilanceScore / maxPossible) * 100);
   };
 
   // Obtenir la progression du niveau
   const getLevelProgress = () => {
-    const baseXP = 100; // XP nécessaire par niveau
+    const baseXP = 100;
     const level = Math.floor(userProgress.xp / baseXP) + 1;
     const xpForCurrentLevel = userProgress.xp % baseXP;
     const progress = (xpForCurrentLevel / baseXP) * 100;
@@ -228,7 +330,8 @@ export function ProgressProvider({ children }: ProgressProviderProps) {
     resetProgress,
     updateVigilanceScore,
     getProgressPercentage,
-    getLevelProgress
+    getLevelProgress,
+    isLoading
   };
 
   return (

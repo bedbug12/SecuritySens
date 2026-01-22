@@ -1,306 +1,287 @@
+// app/dashboard/page.tsx (ancien HomePage déplacé ici)
 'use client';
 
 import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
-  Users,
+  Shield, 
+  Target, 
+  Award, 
   TrendingUp,
-  AlertTriangle,
-  Shield,
+  MailWarning,
+  PhoneCall,
+  UserCheck,
+  QrCode,
+  Play,
+  Sparkles,
+  Users,
   BarChart3,
   Clock,
-  CheckCircle,
-  XCircle
+  ChevronRight,
+  Zap,
+  Star,
+  BookOpen,
+  ShieldCheck,
+  AlertTriangle,
+  Home as HomeIcon
 } from 'lucide-react';
+import { CyberButton } from '@/components/ui/CyberButton';
+import { ScenarioCard } from '@/components/ui/ScenarioCard';
+import { useProgress } from '@/lib/contexts/ProgressContext';
+import { scenarios } from '@/lib/data/scenarios';
+import { useNotification } from '@/components/feedback/NotificationProvider';
+import { useSession } from 'next-auth/react';
 
 export default function DashboardPage() {
-  // Données simulées pour le dashboard admin
-  const stats = {
-    totalUsers: 156,
-    activeUsers: 124,
-    avgScore: 72,
-    incidentsPrevented: 42,
-    avgCompletionRate: 68,
-    riskLevel: 'Moyen'
+  const router = useRouter();
+  const { userProgress, isLoading } = useProgress();
+  const { showNotification } = useNotification();
+  const { data: session } = useSession();
+  const [featuredScenario, setFeaturedScenario] = useState<any>(null);
+
+  useEffect(() => {
+    // Trouver le scénario le plus pertinent pour l'utilisateur
+    if (userProgress && scenarios.length > 0) {
+      const nextScenario = scenarios.find(
+        s => !userProgress.completedScenarios.includes(s.id)
+      ) || scenarios[0];
+      setFeaturedScenario(nextScenario);
+    }
+  }, [userProgress]);
+
+  const handleQuickStart = () => {
+    if (featuredScenario) {
+      showNotification(`🚀 Démarrage du scénario: ${featuredScenario.title}`, 'info');
+      router.push(`/scenarios/${featuredScenario.id}`);
+    } else {
+      showNotification('🎮 Navigation vers les scénarios', 'info');
+      router.push('/scenarios');
+    }
   };
 
-  const recentActivity = [
-    { user: 'Marie Dubois', action: 'Scénario phishing', score: 85, time: '10 min' },
-    { user: 'Jean Martin', action: 'Jeu Vrai/Faux', score: 70, time: '25 min' },
-    { user: 'Sophie Bernard', action: 'Scénario vishing', score: 90, time: '1h' },
-    { user: 'Thomas Petit', action: 'Scénario phishing', score: 60, time: '2h' },
-  ];
-
-  const teams = [
-    { name: 'Direction', score: 85, users: 12, risk: 'Faible' },
-    { name: 'IT', score: 92, users: 8, risk: 'Très faible' },
-    { name: 'RH', score: 65, users: 6, risk: 'Moyen' },
-    { name: 'Commercial', score: 58, users: 24, risk: 'Élevé' },
-    { name: 'Marketing', score: 71, users: 18, risk: 'Moyen' },
-  ];
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4" />
+          <p className="text-gray-400">Chargement de votre tableau de bord...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-12"
-        >
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-4xl md:text-5xl font-bold mb-4">
-                Tableau de bord administrateur
-              </h1>
-              <p className="text-xl text-gray-400">
-                Vue d'ensemble de la sécurité de votre entreprise
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-gradient-to-br from-blue-900/30 to-blue-700/30 border border-blue-700/30">
-                <Shield className="w-8 h-8 text-blue-400" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">Niveau 3</div>
-                <div className="text-sm text-gray-400">Maturité sécurité</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Stats principales */}
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
-            <div className="col-span-2 bg-gray-900/50 rounded-xl p-6 border border-gray-800">
-              <div className="flex items-center gap-3 mb-4">
-                <Users className="w-6 h-6 text-blue-400" />
-                <div className="text-3xl font-bold">{stats.totalUsers}</div>
-              </div>
-              <div className="text-gray-400">Utilisateurs formés</div>
-            </div>
-            
-            <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-800">
-              <div className="flex items-center gap-3 mb-4">
-                <TrendingUp className="w-6 h-6 text-emerald-400" />
-                <div className="text-3xl font-bold">{stats.avgScore}%</div>
-              </div>
-              <div className="text-gray-400">Score moyen</div>
-            </div>
-            
-            <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-800">
-              <div className="flex items-center gap-3 mb-4">
-                <Clock className="w-6 h-6 text-amber-400" />
-                <div className="text-3xl font-bold">{stats.avgCompletionRate}%</div>
-              </div>
-              <div className="text-gray-400">Complétion</div>
-            </div>
-            
-            <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-800">
-              <div className="flex items-center gap-3 mb-4">
-                <AlertTriangle className="w-6 h-6 text-red-400" />
-                <div className="text-3xl font-bold">{stats.incidentsPrevented}</div>
-              </div>
-              <div className="text-gray-400">Incidents évités</div>
-            </div>
-            
-            <div className="col-span-2 bg-gradient-to-br from-gray-900 to-gray-950 rounded-xl p-6 border border-gray-800">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-gray-400 mb-1">Niveau de risque</div>
-                  <div className="text-3xl font-bold">{stats.riskLevel}</div>
-                </div>
-                <div className={`px-4 py-2 rounded-lg ${
-                  stats.riskLevel === 'Faible' ? 'bg-emerald-400/10 text-emerald-400' :
-                  stats.riskLevel === 'Moyen' ? 'bg-amber-400/10 text-amber-400' :
-                  'bg-red-400/10 text-red-400'
-                }`}>
-                  {stats.riskLevel === 'Faible' ? '✓ Sécurisé' :
-                   stats.riskLevel === 'Moyen' ? '⚠️ Surveiller' :
-                   '🔴 Action requise'}
-                </div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Graphique et activité */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-          {/* Graphique */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="bg-gray-900/50 rounded-2xl border border-gray-800 p-6"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">Progression globale</h2>
-              <BarChart3 className="w-6 h-6 text-blue-400" />
-            </div>
-            
-            <div className="h-64 flex items-end gap-2">
-              {[30, 45, 60, 75, 85, 92, 88, 90, 95, 93, 96, 98].map((value, index) => (
-                <div key={index} className="flex-1 flex flex-col items-center">
-                  <div 
-                    className="w-full bg-gradient-to-t from-blue-500 to-blue-400 rounded-t"
-                    style={{ height: `${value}%` }}
-                  />
-                  <div className="text-xs text-gray-500 mt-2">{index + 1}</div>
-                </div>
-              ))}
-            </div>
-            
-            <div className="flex justify-between mt-4 text-sm text-gray-400">
-              <span>Mois 1</span>
-              <span>Mois 12</span>
-            </div>
-          </motion.div>
-
-          {/* Activité récente */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="bg-gray-900/50 rounded-2xl border border-gray-800 p-6"
-          >
-            <h2 className="text-xl font-bold mb-6">Activité récente</h2>
-            
-            <div className="space-y-4">
-              {recentActivity.map((activity, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg">
-                  <div>
-                    <div className="font-semibold">{activity.user}</div>
-                    <div className="text-sm text-gray-400">{activity.action}</div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      activity.score >= 80 ? 'bg-emerald-400/10 text-emerald-400' :
-                      activity.score >= 60 ? 'bg-blue-400/10 text-blue-400' :
-                      'bg-amber-400/10 text-amber-400'
-                    }`}>
-                      {activity.score}%
-                    </div>
-                    <div className="text-sm text-gray-500">{activity.time}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
+    <div className="min-h-screen">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 pt-8">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-sm text-gray-500 mb-8">
+          <HomeIcon className="w-4 h-4" />
+          <ChevronRight className="w-3 h-3" />
+          <span className="text-gray-300">Tableau de bord</span>
         </div>
 
-        {/* Performance par équipe */}
-        <motion.div
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold mb-2">
+            Bonjour, <span className="text-emerald-400">{session?.user?.name || 'Expert'}</span> 👋
+          </h1>
+          <p className="text-gray-400">
+            Voici votre progression et les scénarios recommandés pour vous
+          </p>
+        </div>
+
+        {/* Progression */}
+        <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-12"
         >
-          <h2 className="text-2xl font-bold mb-6">Performance par équipe</h2>
-          
-          <div className="bg-gray-900/50 rounded-2xl border border-gray-800 overflow-hidden">
-            <div className="grid grid-cols-12 gap-4 p-6 border-b border-gray-800 font-semibold text-gray-400">
-              <div className="col-span-4">Équipe</div>
-              <div className="col-span-2">Score</div>
-              <div className="col-span-2">Utilisateurs</div>
-              <div className="col-span-2">Complétion</div>
-              <div className="col-span-2">Niveau de risque</div>
+          <div className="bg-gradient-to-br from-gray-900 to-gray-950 rounded-3xl border border-gray-800 p-8">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Votre progression</h2>
+                <p className="text-gray-400">Continuez votre parcours de formation</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="px-3 py-1 bg-emerald-400/10 rounded-full text-emerald-400 text-sm font-medium">
+                  Niveau {userProgress.level}
+                </div>
+                <div className="px-3 py-1 bg-blue-400/10 rounded-full text-blue-400 text-sm font-medium">
+                  {userProgress.xp} XP
+                </div>
+              </div>
             </div>
             
-            {teams.map((team, index) => (
-              <div key={index} className="grid grid-cols-12 gap-4 p-6 border-b border-gray-800 hover:bg-gray-800/20 transition-colors">
-                <div className="col-span-4 font-semibold">{team.name}</div>
-                <div className="col-span-2">
-                  <div className={`px-3 py-1 rounded-full text-sm font-medium w-fit ${
-                    team.score >= 80 ? 'bg-emerald-400/10 text-emerald-400' :
-                    team.score >= 60 ? 'bg-blue-400/10 text-blue-400' :
-                    'bg-red-400/10 text-red-400'
-                  }`}>
-                    {team.score}%
-                  </div>
-                </div>
-                <div className="col-span-2">{team.users} utilisateurs</div>
-                <div className="col-span-2">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-blue-500 to-emerald-500"
-                        style={{ width: `${Math.min(100, team.score)}%` }}
-                      />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              {[
+                { 
+                  label: 'Vigilance', 
+                  value: userProgress.vigilanceScore, 
+                  max: 100,
+                  color: 'from-emerald-400 to-green-400',
+                  icon: <Target className="w-5 h-5" />
+                },
+                { 
+                  label: 'Scénarios', 
+                  value: userProgress.completedScenarios.length, 
+                  max: scenarios.length,
+                  color: 'from-blue-400 to-cyan-400',
+                  icon: <BookOpen className="w-5 h-5" />
+                },
+                { 
+                  label: 'Badges', 
+                  value: userProgress.badges.length, 
+                  max: 15,
+                  color: 'from-purple-400 to-pink-400',
+                  icon: <Award className="w-5 h-5" />
+                },
+                { 
+                  label: 'Streak', 
+                  value: userProgress.consecutiveCorrect, 
+                  max: 10,
+                  color: 'from-amber-400 to-orange-400',
+                  icon: <Zap className="w-5 h-5" />
+                },
+              ].map((stat, idx) => (
+                <div key={stat.label} className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`p-2 rounded-lg bg-gradient-to-br ${stat.color}/10`}>
+                        {stat.icon}
+                      </div>
+                      <span className="text-gray-300">{stat.label}</span>
                     </div>
-                    <span className="text-sm">{team.score}%</span>
+                    <span className="font-bold">
+                      {stat.value}/{stat.max}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(stat.value / stat.max) * 100}%` }}
+                      transition={{ duration: 1, delay: idx * 0.1 }}
+                      className={`h-full bg-gradient-to-r ${stat.color}`}
+                    />
                   </div>
                 </div>
-                <div className="col-span-2">
-                  <div className={`px-3 py-1 rounded-full text-sm font-medium w-fit ${
-                    team.risk === 'Très faible' ? 'bg-emerald-400/10 text-emerald-400' :
-                    team.risk === 'Faible' ? 'bg-emerald-400/10 text-emerald-400' :
-                    team.risk === 'Moyen' ? 'bg-amber-400/10 text-amber-400' :
-                    'bg-red-400/10 text-red-400'
-                  }`}>
-                    {team.risk}
+              ))}
+            </div>
+            
+            {/* Scénario recommandé */}
+            {featuredScenario && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-gradient-to-r from-blue-900/20 to-emerald-900/20 rounded-2xl border border-blue-700/30 p-6"
+              >
+                <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-blue-900/30 to-blue-700/30">
+                      <AlertTriangle className="w-8 h-8 text-blue-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg mb-1">Scénario recommandé</h3>
+                      <p className="text-gray-400 text-sm">
+                        {featuredScenario.description}
+                      </p>
+                    </div>
                   </div>
+                  <CyberButton
+                    variant="primary"
+                    onClick={handleQuickStart}
+                    icon={<Play className="w-5 h-5" />}
+                  >
+                    Commencer
+                  </CyberButton>
                 </div>
-              </div>
+              </motion.div>
+            )}
+          </div>
+        </motion.section>
+
+        {/* Scénarios récents */}
+        <section className="mb-12">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Continuez votre formation</h2>
+              <p className="text-gray-400">Scénarios adaptés à votre niveau</p>
+            </div>
+            <CyberButton
+              variant="ghost"
+              onClick={() => router.push('/scenarios')}
+              icon={<ChevronRight className="w-4 h-4" />}
+              iconPosition="right"
+            >
+              Voir tous
+            </CyberButton>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {scenarios.slice(0, 3).map((scenario, index) => (
+              <ScenarioCard
+                key={scenario.id}
+                scenario={scenario}
+                delay={index * 0.1}
+                compact={false}
+                
+              />
             ))}
           </div>
-        </motion.div>
+        </section>
 
-        {/* Actions rapides */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6"
-        >
-          <div className="bg-gradient-to-br from-blue-900/20 to-blue-700/10 rounded-2xl border border-blue-800/30 p-6">
-            <h3 className="text-lg font-bold mb-4">Actions requises</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">Campagnes à lancer</span>
-                <span className="font-semibold">3</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">Utilisateurs à risque</span>
-                <span className="font-semibold text-amber-400">12</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">Scénarios à créer</span>
-                <span className="font-semibold">2</span>
-              </div>
-            </div>
+        {/* Quick Actions */}
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold mb-6">Actions rapides</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                title: 'Voir ma progression',
+                description: 'Consultez vos statistiques détaillées',
+                icon: <TrendingUp className="w-6 h-6" />,
+                color: 'from-blue-500 to-cyan-500',
+                onClick: () => router.push('/progress')
+              },
+              {
+                title: 'Jouer aux jeux',
+                description: 'Testez vos connaissances',
+                icon: <Zap className="w-6 h-6" />,
+                color: 'from-purple-500 to-pink-500',
+                onClick: () => router.push('/games')
+              },
+              {
+                title: 'Mes badges',
+                description: 'Vos certifications et récompenses',
+                icon: <Award className="w-6 h-6" />,
+                color: 'from-amber-500 to-orange-500',
+                onClick: () => router.push('/profile#badges')
+              },
+            ].map((action, index) => (
+              <motion.button
+                key={action.title}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={action.onClick}
+                className={`bg-gradient-to-br ${action.color}/10 to-gray-900/50 rounded-2xl p-6 border border-gray-800 hover:border-gray-700 transition-all text-left`}
+              >
+                <div className={`bg-gradient-to-br ${action.color} w-12 h-12 rounded-xl flex items-center justify-center mb-4`}>
+                  <div className="text-white">
+                    {action.icon}
+                  </div>
+                </div>
+                <h3 className="font-bold text-lg mb-2">{action.title}</h3>
+                <p className="text-gray-400 text-sm">{action.description}</p>
+                <div className="mt-4 flex items-center text-sm text-gray-500">
+                  Accéder
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </div>
+              </motion.button>
+            ))}
           </div>
-          
-          <div className="bg-gradient-to-br from-emerald-900/20 to-emerald-700/10 rounded-2xl border border-emerald-800/30 p-6">
-            <h3 className="text-lg font-bold mb-4">Statistiques positives</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">Amélioration moyenne</span>
-                <span className="font-semibold text-emerald-400">+24%</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">Satisfaction</span>
-                <span className="font-semibold">94%</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">Engagement</span>
-                <span className="font-semibold">87%</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-br from-purple-900/20 to-purple-700/10 rounded-2xl border border-purple-800/30 p-6">
-            <h3 className="text-lg font-bold mb-4">Prochaines étapes</h3>
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-400" />
-                <span className="text-sm">Formation équipe commerciale</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-400" />
-                <span className="text-sm">Analyse trimestrielle</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-400" />
-                <span className="text-sm">Mise à jour des scénarios</span>
-              </div>
-            </div>
-          </div>
-        </motion.div>
+        </section>
       </div>
     </div>
   );

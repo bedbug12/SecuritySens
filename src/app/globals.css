@@ -24,3 +24,12 @@ body {
     box-shadow: 0 0 20px rgba(59,130,246,.5);
   }
 }
+
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE et Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari et Opera */
+}
