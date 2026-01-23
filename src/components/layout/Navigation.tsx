@@ -128,7 +128,7 @@ export function Navigation() {
           {/* Logo */}
           <div className="p-6 border-b border-gray-800">
             <Link 
-              href={status === 'authenticated' ? '/dashboard' : '/'} 
+              href={status === 'authenticated' ? '/dashboard' : '/landingpage'} 
               className="flex items-center gap-3"
             >
               <div className="p-2 rounded-lg bg-gradient-to-br from-blue-900/30 to-blue-700/30">
@@ -198,11 +198,13 @@ export function Navigation() {
 
               {/* Bottom section */}
               <div className="p-4 border-t border-gray-800 space-y-2 mt-auto">
-                <button className="flex items-center gap-3 px-4 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/50 w-full">
-                  <Settings className="w-5 h-5" />
-                  Paramètres
-                </button>
-
+                <Link href={'/settings'}>
+                  <button className="flex items-center gap-3 px-4 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/50 w-full">
+                  
+                    <Settings className="w-5 h-5" />
+                    Paramètres
+                  </button>
+                </Link>
                 <button
                   onClick={handleSignOut}
                   className="flex items-center gap-3 px-4 py-2 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 w-full"
