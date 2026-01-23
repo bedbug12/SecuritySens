@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useProgress } from '@/lib/contexts/ProgressContext';
+import { useSession } from 'next-auth/react'; // <-- AJOUTER CET IMPORT
 
 interface ScenarioCardProps {
   scenario: {
@@ -34,8 +35,29 @@ interface ScenarioCardProps {
 const ScenarioCard = ({ scenario, delay = 0, compact = false }: ScenarioCardProps) => {
   const router = useRouter();
   const { userProgress } = useProgress();
+  const { data: session } = useSession(); // <-- AJOUTER CET HOOK
   
-  const isCompleted = userProgress.completedScenarios.includes(scenario.id);
+  // Fonction pour vérifier si le scénario est complété (mode invité)
+  const checkGuestCompletion = () => {
+    if (session?.user) {
+      // Utilisateur connecté : utiliser la progression du serveur
+      return userProgress.completedScenarios.includes(scenario.id);
+    } else {
+      // Mode invité : vérifier localStorage
+      try {
+        const guestProgress = localStorage.getItem('security-sense-progress-guest');
+        if (guestProgress) {
+          const parsed = JSON.parse(guestProgress);
+          return parsed.completedScenarios?.includes(scenario.id) || false;
+        }
+      } catch (error) {
+        console.error('Error reading guest progress:', error);
+      }
+      return false;
+    }
+  };
+  
+  const isCompleted = checkGuestCompletion();
   
   const getTypeIcon = () => {
     switch(scenario.type) {

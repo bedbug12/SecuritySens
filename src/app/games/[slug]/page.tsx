@@ -1,3 +1,4 @@
+// app/games/[slug]/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -19,18 +20,22 @@ import { SpotTheSigns } from '@/components/games/SpotTheSigns';
 import { useProgress } from '@/lib/contexts/ProgressContext';
 import { useNotification } from '@/components/feedback/NotificationProvider';
 import { CyberButton } from '@/components/ui/CyberButton';
+import { useSession } from 'next-auth/react';
 
 export default function GamePage() {
   const params = useParams();
   const router = useRouter();
   const { userProgress } = useProgress();
   const { showNotification } = useNotification();
+  const { data: session } = useSession();
   
   const [game, setGame] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(520); // 3 minutes
+  const [timeLeft, setTimeLeft] = useState(180); // 3 minutes
   const [showResults, setShowResults] = useState(false);
+  const [correctAnswers, setCorrectAnswers] = useState(0);
+  const [totalQuestions, setTotalQuestions] = useState(0);
 
   useEffect(() => {
     const found = games.find(g => g.id === params.slug);
@@ -52,25 +57,109 @@ export default function GamePage() {
 
   const handleStartGame = () => {
     setIsPlaying(true);
+    setScore(0);
+    setCorrectAnswers(0);
+    setTotalQuestions(0);
     showNotification('Jeu démarré ! Bonne chance 🎮', 'info');
   };
 
   const handleAnswer = (isCorrect: boolean) => {
+    setTotalQuestions(prev => prev + 1);
     if (isCorrect) {
       setScore(prev => prev + 10);
+      setCorrectAnswers(prev => prev + 1);
       showNotification('Bonne réponse ! +10 points', 'success');
     } else {
       showNotification('Réponse incorrecte', 'warning');
     }
   };
 
-  const handleGameComplete = () => {
-    setIsPlaying(false);
-    setShowResults(true);
+  // Dans la fonction handleGameComplete, remplacez le code actuel par :
+
+const handleGameComplete = async () => {
+  setIsPlaying(false);
+  setShowResults(true);
+  
+  const finalScore = score + Math.floor(timeLeft / 3);
+  const successRate = totalQuestions > 0 
+    ? Math.round((correctAnswers / totalQuestions) * 100)
+    : 0;
+
+  try {
+    // Enregistrer la progression du jeu via l'API - SEULE SOURCE DE VÉRITÉ
+    const response = await fetch('/api/user/progress', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        gameId: game.id,
+        score: finalScore,
+        questionsAnswered: totalQuestions,
+        correctAnswers,
+        hintsUsed: 0, // À ajuster si votre jeu a des indices
+        timeSpent: 180 - timeLeft,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to save game progress');
+    }
+
+    const result = await response.json();
     
-    const finalScore = score + Math.floor(timeLeft / 3); // Bonus temps
-    showNotification(`Score final: ${finalScore} points`, 'info');
-  };
+    // Notification de succès
+    let notificationMessage = '';
+    let notificationType: 'success' | 'warning' | 'info' = 'info';
+    
+    if (successRate >= 80) {
+      notificationMessage = `Excellent ! ${successRate}% de précision`;
+      notificationType = 'success';
+    } else if (successRate >= 60) {
+      notificationMessage = `Bon travail ! ${successRate}% de précision`;
+      notificationType = 'info';
+    } else {
+      notificationMessage = `À améliorer. ${successRate}% de précision`;
+      notificationType = 'warning';
+    }
+    
+    showNotification(
+      notificationMessage,
+      notificationType,
+      `Score: ${finalScore} • +${result.xpGained} XP`
+    );
+
+  } catch (error) {
+    console.error('Error saving game progress:', error);
+    showNotification(
+      'Erreur lors de la sauvegarde de votre score',
+      'error'
+    );
+    
+    // Mode invité : sauvegarde locale
+    if (!session?.user) {
+      try {
+        const guestProgress = localStorage.getItem('security-sense-progress-guest');
+        if (guestProgress) {
+          const parsed = JSON.parse(guestProgress);
+          const updatedProgress = {
+            ...parsed,
+            gamesPlayed: parsed.gamesPlayed + 1,
+            xp: parsed.xp + Math.round(finalScore / 20),
+            lastPlayed: new Date().toISOString(),
+          };
+          localStorage.setItem('security-sense-progress-guest', JSON.stringify(updatedProgress));
+        }
+      } catch (localError) {
+        console.error('Error saving to localStorage:', localError);
+      }
+    }
+  }
+};
+
+// Supprimez l'appel à completeGame du contexte qui fait des calculs locaux
+// REMOVE: await completeGame(finalScore);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -323,6 +412,8 @@ export default function GamePage() {
                     setScore(0);
                     setTimeLeft(180);
                     setShowResults(false);
+                    setCorrectAnswers(0);
+                    setTotalQuestions(0);
                   }}
                   className="flex-1"
                 >

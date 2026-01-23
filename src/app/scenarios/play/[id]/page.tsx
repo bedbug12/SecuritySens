@@ -21,12 +21,13 @@ import { QRCodeScanner } from '@/components/scenarios/QRCodeScanner';
 import { useProgress } from '@/lib/contexts/ProgressContext';
 import { useNotification } from '@/components/feedback/NotificationProvider';
 import { CyberButton } from '@/components/ui/CyberButton';
+import { useSession } from 'next-auth/react';
 
 export default function PlayScenarioPage() {
   const params = useParams();
   const router = useRouter();
-  const { completeScenario } = useProgress();
   const { showNotification } = useNotification();
+  const { data: session } = useSession();
   
   const [scenario, setScenario] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,14 +64,41 @@ export default function PlayScenarioPage() {
     }
   }, [isComplete, scenario]);
 
-  const handleScenarioComplete = (scenarioScore: number) => {
-    setScore(scenarioScore);
-    setIsComplete(true);
-    
-    if (scenario) {
-      // Enregistrer la progression
-      completeScenario(scenario.id, scenarioScore);
+  // Dans la fonction handleScenarioComplete, remplacez le code actuel par :
+
+const handleScenarioComplete = async (scenarioScore: number) => {
+  setScore(scenarioScore);
+  setIsComplete(true);
+  
+  if (scenario) {
+    try {
+      // Enregistrer le score via l'API - SEULE SOURCE DE VÉRITÉ
+      const response = await fetch('/api/user/scenario-score', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          scenarioId: scenario.id,
+          score: scenarioScore,
+          timeSpent: timer,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to save scenario score');
+      }
+
+      const result = await response.json();
       
+      // Mettre à jour la progression locale AVEC LA RÉPONSE SERVEUR
+      if (result.progress) {
+        // Vous pouvez utiliser un contexte global ou rafraîchir les données
+        // Pour l'instant, on montre juste le résultat
+        console.log('Progression mise à jour:', result.progress);
+      }
+
       // Notification
       if (scenarioScore >= 80) {
         showNotification('🎉 Excellent travail ! Score élevé', 'success');
@@ -79,8 +107,50 @@ export default function PlayScenarioPage() {
       } else {
         showNotification('💡 Analysez les conseils pour améliorer votre score', 'warning');
       }
+
+      // Afficher les badges débloqués
+      if (result.badgesUnlocked?.length > 0) {
+        showNotification(
+          `🎖️ Nouveaux badges débloqués : ${result.badgesUnlocked.join(', ')}`,
+          'success',
+          '+XP: ' + result.xpGained
+        );
+      }
+
+    } catch (error) {
+      console.error('Error saving scenario score:', error);
+      showNotification(
+        'Erreur lors de la sauvegarde de votre progression',
+        'error'
+      );
+      
+      // Mode invité : sauvegarde locale
+      if (!session?.user) {
+        try {
+          const guestProgress = localStorage.getItem('security-sense-progress-guest');
+          if (guestProgress) {
+            const parsed = JSON.parse(guestProgress);
+            const updatedProgress = {
+              ...parsed,
+              xp: parsed.xp + Math.round(scenarioScore / 10),
+              vigilanceScore: Math.min(100, Math.max(0,
+                Math.round((parsed.vigilanceScore * 0.7) + (scenarioScore * 0.3))
+              )),
+              completedScenarios: [...new Set([...parsed.completedScenarios, scenario.id])],
+              lastPlayed: new Date().toISOString(),
+            };
+            localStorage.setItem('security-sense-progress-guest', JSON.stringify(updatedProgress));
+          }
+        } catch (localError) {
+          console.error('Error saving to localStorage:', localError);
+        }
+      }
     }
-  };
+  }
+};
+
+// Supprimez l'appel à completeScenario du contexte qui fait des calculs locaux
+// REMOVE: await completeScenario(scenario.id, scenarioScore);
 
   const handleNext = () => {
     if (scenario && currentStep < scenario.data?.steps?.length - 1) {

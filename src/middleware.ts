@@ -17,7 +17,8 @@ export default withAuth(
       "/api/auth",
       "/api/auth/callback",
       "/demo", // La démo reste accessible
-      "/",
+      "/landingpage",
+      "/scenarios",
     ];
 
     // Si l'utilisateur est connecté et tente d'accéder à la page de connexion
@@ -27,7 +28,7 @@ export default withAuth(
 
     // Si l'utilisateur n'est pas connecté et tente d'accéder à une route protégée
     if (!token && !publicPaths.some(path => pathname.startsWith(path))) {
-      return NextResponse.redirect(new URL("/auth/signin", req.url));
+      return NextResponse.redirect(new URL("/landingpage", req.url));
     }
 
     return NextResponse.next();

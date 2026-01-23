@@ -17,7 +17,8 @@ import {
   TrendingDown,
   CheckCircle,
   XCircle,
-  AlertTriangle
+  AlertTriangle,
+  User
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useProgress } from '@/lib/contexts/ProgressContext';
@@ -30,65 +31,98 @@ import { useState, useEffect } from 'react';
 export default function ProgressPage() {
   const router = useRouter();
   const { userProgress, isLoading } = useProgress();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [userStats, setUserStats] = useState<any>(null);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [guestProgress, setGuestProgress] = useState<any>(null);
 
-  // Charger les statistiques utilisateur
+  // Charger les statistiques utilisateur (authentifié seulement)
   useEffect(() => {
     const loadUserStats = async () => {
-      try {
-        const response = await fetch('/api/user/stats');
-        if (response.ok) {
-          const data = await response.json();
-          setUserStats(data);
+      if (session?.user?.id) {
+        try {
+          const response = await fetch('/api/user/stats');
+          if (response.ok) {
+            const data = await response.json();
+            setUserStats(data);
+          }
+        } catch (error) {
+          console.error('Error loading user stats:', error);
         }
-      } catch (error) {
-        console.error('Error loading user stats:', error);
       }
     };
 
-    if (session?.user?.id) {
-      loadUserStats();
-    }
+    loadUserStats();
   }, [session]);
 
-  // Simulation d'activité récente (à remplacer par vos données réelles)
+  // Charger la progression invité depuis localStorage
   useEffect(() => {
-    if (userProgress && scenarios.length > 0) {
-      const activities = userProgress.completedScenarios.slice(0, 4).map((scenarioId, index) => {
+    if (!session?.user?.id && status === 'unauthenticated') {
+      try {
+        const saved = localStorage.getItem('security-sense-progress-guest');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setGuestProgress(parsed);
+        }
+      } catch (error) {
+        console.error('Error loading guest progress:', error);
+      }
+    }
+  }, [session, status]);
+
+  // Utiliser la progression appropriée (invité ou authentifié)
+  const currentProgress = session?.user?.id ? userProgress : guestProgress;
+
+  // Simulation d'activité récente
+  useEffect(() => {
+    if (currentProgress?.completedScenarios?.length > 0 && scenarios.length > 0) {
+      const activities = currentProgress.completedScenarios.slice(0, 4).map((scenarioId: string, index: number) => {
         const scenario = scenarios.find(s => s.id === scenarioId);
         const daysAgo = index + 1;
         return {
           type: 'scenario',
           id: scenarioId,
           name: scenario?.title || 'Scénario complété',
-          score: 85 - (index * 5), // Score fictif
+          score: 85 - (index * 5),
           date: index === 0 ? 'Aujourd\'hui' : `Il y a ${daysAgo} jour${daysAgo > 1 ? 's' : ''}`,
           scenario: scenario
         };
       });
       setRecentActivity(activities);
+    } else if (currentProgress?.lastPlayed) {
+      // Si pas de scénarios complétés mais une activité récente
+      setRecentActivity([{
+        type: 'activity',
+        name: 'Dernière connexion',
+        date: 'Récemment',
+        score: currentProgress.vigilanceScore || 50
+      }]);
     }
-  }, [userProgress]);
+  }, [currentProgress]);
 
   // Calcul des statistiques
   const stats = {
     totalScenarios: scenarios.length,
-    completedScenarios: userProgress.completedScenarios.length,
-    completionRate: Math.round((userProgress.completedScenarios.length / scenarios.length) * 100),
+    completedScenarios: currentProgress?.completedScenarios?.length || 0,
+    completionRate: currentProgress?.completedScenarios ? 
+      Math.round((currentProgress.completedScenarios.length / scenarios.length) * 100) : 0,
     totalGames: games.length,
-    gamesPlayed: userProgress.gamesPlayed,
-    avgScore: userStats?.averageScore || userProgress.vigilanceScore,
-    daysActive: userStats?.streak || 7,
-    currentStreak: userProgress.consecutiveCorrect,
-    totalXP: userProgress.xp,
-    level: userProgress.level,
-    vigilanceScore: userProgress.vigilanceScore,
-    badgesCount: userProgress.badges.length,
-    lastPlayed: userProgress.lastPlayed ? 
-      new Date(userProgress.lastPlayed).toLocaleDateString('fr-FR') : 
-      'Jamais'
+    gamesPlayed: currentProgress?.gamesPlayed || 0,
+    avgScore: userStats?.averageScore || currentProgress?.vigilanceScore || 50,
+    daysActive: userStats?.streak || (currentProgress?.lastPlayed ? 1 : 0),
+    currentStreak: currentProgress?.consecutiveCorrect || 0,
+    totalXP: currentProgress?.xp || 0,
+    level: currentProgress?.level || 1,
+    vigilanceScore: currentProgress?.vigilanceScore || 50,
+    badgesCount: currentProgress?.badges?.length || (currentProgress ? 1 : 0), // 1 pour le badge 'starter'
+    lastPlayed: currentProgress?.lastPlayed ? 
+      new Date(currentProgress.lastPlayed).toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      }) : 
+      'Jamais',
+    isGuest: !session?.user?.id
   };
 
   // Badges disponibles
@@ -99,7 +133,7 @@ export default function ProgressPage() {
       icon: '🛡️', 
       description: 'Première connexion',
       color: 'from-blue-500 to-cyan-500',
-      unlocked: userProgress.badges.includes('starter')
+      unlocked: currentProgress?.badges?.includes('starter') || stats.isGuest
     },
     { 
       id: 'learner', 
@@ -107,7 +141,7 @@ export default function ProgressPage() {
       icon: '📚', 
       description: '3 scénarios complétés',
       color: 'from-emerald-500 to-green-500',
-      unlocked: userProgress.badges.includes('learner') || stats.completedScenarios >= 3
+      unlocked: currentProgress?.badges?.includes('learner') || stats.completedScenarios >= 3
     },
     { 
       id: 'scenario-master', 
@@ -115,7 +149,7 @@ export default function ProgressPage() {
       icon: '🎯', 
       description: '5 scénarios complétés',
       color: 'from-purple-500 to-pink-500',
-      unlocked: userProgress.badges.includes('scenario-master') || stats.completedScenarios >= 5
+      unlocked: currentProgress?.badges?.includes('scenario-master') || stats.completedScenarios >= 5
     },
     { 
       id: 'perfect-streak', 
@@ -123,7 +157,7 @@ export default function ProgressPage() {
       icon: '⚡', 
       description: '3 bonnes réponses consécutives',
       color: 'from-amber-500 to-orange-500',
-      unlocked: userProgress.badges.includes('perfect-streak') || stats.currentStreak >= 3
+      unlocked: currentProgress?.badges?.includes('perfect-streak') || stats.currentStreak >= 3
     },
     { 
       id: 'vigilant', 
@@ -131,7 +165,7 @@ export default function ProgressPage() {
       icon: '👁️', 
       description: 'Score de vigilance > 80',
       color: 'from-blue-500 to-indigo-500',
-      unlocked: userProgress.badges.includes('vigilant') || stats.vigilanceScore >= 80
+      unlocked: currentProgress?.badges?.includes('vigilant') || stats.vigilanceScore >= 80
     },
     { 
       id: 'security-expert', 
@@ -139,7 +173,7 @@ export default function ProgressPage() {
       icon: '👑', 
       description: 'Score de vigilance > 90',
       color: 'from-yellow-500 to-amber-500',
-      unlocked: userProgress.badges.includes('security-expert') || stats.vigilanceScore >= 90
+      unlocked: currentProgress?.badges?.includes('security-expert') || stats.vigilanceScore >= 90
     },
     { 
       id: 'consistent', 
@@ -147,7 +181,7 @@ export default function ProgressPage() {
       icon: '📅', 
       description: '3 jours consécutifs d\'activité',
       color: 'from-emerald-500 to-teal-500',
-      unlocked: userProgress.badges.includes('consistent')
+      unlocked: currentProgress?.badges?.includes('consistent')
     },
     { 
       id: 'cyber-master', 
@@ -155,11 +189,12 @@ export default function ProgressPage() {
       icon: '💻', 
       description: 'Tous les scénarios complétés',
       color: 'from-red-500 to-pink-500',
-      unlocked: userProgress.badges.includes('cyber-master') || stats.completionRate === 100
+      unlocked: currentProgress?.badges?.includes('cyber-master') || stats.completionRate === 100
     },
   ];
 
   const getLevelProgress = () => {
+    if (!currentProgress) return 0;
     const xpForNextLevel = 100 * Math.pow(1.5, stats.level - 1);
     const currentXp = stats.totalXP % xpForNextLevel;
     return (currentXp / xpForNextLevel) * 100;
@@ -197,7 +232,46 @@ export default function ProgressPage() {
 
   const performanceTrend = getPerformanceTrend();
 
-  if (isLoading) {
+  const handleSignInRedirect = () => {
+    router.push('/auth/signin?callbackUrl=/progress');
+  };
+
+  const handleExportProgress = async () => {
+    if (stats.isGuest && currentProgress) {
+      // Exporter la progression invité
+      const dataStr = JSON.stringify(currentProgress, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `security-sense-progress-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } else if (session?.user) {
+      // Exporter la progression serveur
+      try {
+        const response = await fetch('/api/user/export-progress');
+        if (response.ok) {
+          const data = await response.blob();
+          const url = URL.createObjectURL(data);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `security-sense-progress-${session.user.name}-${new Date().toISOString().split('T')[0]}.json`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }
+      } catch (error) {
+        console.error('Error exporting progress:', error);
+        alert('Erreur lors de l\'exportation');
+      }
+    }
+  };
+
+  if (isLoading && status !== 'unauthenticated') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -209,7 +283,7 @@ export default function ProgressPage() {
   }
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header avec infos utilisateur */}
         <motion.div
@@ -220,20 +294,40 @@ export default function ProgressPage() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center">
-                  <span className="font-bold text-white text-lg">
-                    {session?.user?.name?.charAt(0) || 'U'}
-                  </span>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                  stats.isGuest 
+                    ? 'bg-gradient-to-br from-amber-500 to-orange-500'
+                    : 'bg-gradient-to-br from-blue-500 to-emerald-500'
+                }`}>
+                  {stats.isGuest ? (
+                    <User className="w-6 h-6 text-white" />
+                  ) : (
+                    <span className="font-bold text-white text-lg">
+                      {session?.user?.name?.charAt(0) || 'U'}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <h1 className="text-3xl md:text-4xl font-bold">
-                    {session?.user?.name || 'Utilisateur'}
+                    {stats.isGuest ? 'Mode Invité' : session?.user?.name || 'Utilisateur'}
                   </h1>
-                  <p className="text-gray-400">{session?.user?.email}</p>
+                  <div className="flex items-center gap-3">
+                    <p className="text-gray-400">
+                      {stats.isGuest ? 'Progression locale' : session?.user?.email}
+                    </p>
+                    {stats.isGuest && (
+                      <span className="px-2 py-1 text-xs bg-amber-400/10 text-amber-400 rounded-full">
+                        Non sauvegardé
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <p className="text-xl text-gray-400">
-                Suivez votre évolution dans la formation SecuritySense
+                {stats.isGuest 
+                  ? 'Votre progression est sauvegardée localement. Connectez-vous pour la sauvegarder sur le serveur.'
+                  : 'Suivez votre évolution dans la formation SecuritySense'
+                }
               </p>
             </div>
             
@@ -242,15 +336,63 @@ export default function ProgressPage() {
                 <div className="text-sm text-gray-400 mb-1">Dernière activité</div>
                 <div className="font-semibold">{stats.lastPlayed}</div>
               </div>
-              <CyberButton
-                variant="primary"
-                onClick={() => router.push('/scenarios')}
-                icon={<Target className="w-5 h-5" />}
-              >
-                Continuer
-              </CyberButton>
+              
+              {stats.isGuest ? (
+                <CyberButton
+                  variant="primary"
+                  onClick={handleSignInRedirect}
+                  icon={<User className="w-5 h-5" />}
+                >
+                  Se connecter
+                </CyberButton>
+              ) : (
+                <CyberButton
+                  variant="primary"
+                  onClick={() => router.push('/scenarios')}
+                  icon={<Target className="w-5 h-5" />}
+                >
+                  Continuer
+                </CyberButton>
+              )}
             </div>
           </div>
+
+          {/* Bannière mode invité */}
+          {stats.isGuest && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-gradient-to-r from-amber-900/20 to-orange-900/20 rounded-xl border border-amber-800/30 p-4 mb-6"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-400" />
+                  <div>
+                    <h3 className="font-semibold">Mode invité activé</h3>
+                    <p className="text-sm text-gray-400">
+                      Votre progression n'est pas sauvegardée sur le serveur. Créez un compte pour sauvegarder vos données.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <CyberButton
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportProgress}
+                  >
+                    Exporter
+                  </CyberButton>
+                  <CyberButton
+                    variant="primary"
+                    size="sm"
+                    onClick={handleSignInRedirect}
+                  >
+                    Sauvegarder
+                  </CyberButton>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </motion.div>
 
         {/* Niveau & XP - Section améliorée */}
@@ -270,18 +412,20 @@ export default function ProgressPage() {
                   {stats.totalXP} points d'expérience accumulés
                 </p>
                 <div className="mt-4 flex items-center gap-2">
-                  <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    performanceTrend.trend === 'up' ? 'bg-emerald-400/10 text-emerald-400' :
-                    performanceTrend.trend === 'down' ? 'bg-red-400/10 text-red-400' :
-                    'bg-blue-400/10 text-blue-400'
-                  }`}>
-                    {performanceTrend.trend === 'up' ? '📈 En progression' :
-                     performanceTrend.trend === 'down' ? '📉 En baisse' : '📊 Stable'}
-                  </div>
-                  {performanceTrend.change > 0 && (
-                    <span className="text-sm text-emerald-400">
-                      +{performanceTrend.change} points
-                    </span>
+                  {!stats.isGuest && performanceTrend.change > 0 && (
+                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      performanceTrend.trend === 'up' ? 'bg-emerald-400/10 text-emerald-400' :
+                      performanceTrend.trend === 'down' ? 'bg-red-400/10 text-red-400' :
+                      'bg-blue-400/10 text-blue-400'
+                    }`}>
+                      {performanceTrend.trend === 'up' ? '📈 En progression' :
+                       performanceTrend.trend === 'down' ? '📉 En baisse' : '📊 Stable'}
+                    </div>
+                  )}
+                  {stats.isGuest && (
+                    <div className="px-3 py-1 bg-blue-400/10 rounded-full text-xs text-blue-400">
+                      Mode invité
+                    </div>
                   )}
                 </div>
               </div>
@@ -407,7 +551,7 @@ export default function ProgressPage() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold flex items-center gap-3">
                 <Award className="w-6 h-6 text-yellow-400" />
-                Vos badges ({getUnlockedBadges().length}/{availableBadges.length})
+                {stats.isGuest ? 'Vos badges locaux' : 'Vos badges'} ({getUnlockedBadges().length}/{availableBadges.length})
               </h2>
               <div className="text-sm text-gray-400">
                 {Math.round((getUnlockedBadges().length / availableBadges.length) * 100)}% complété
@@ -520,6 +664,28 @@ export default function ProgressPage() {
                   </div>
                 </div>
               )}
+
+              {stats.isGuest && (
+                <div className="bg-gradient-to-br from-amber-900/20 to-orange-900/10 rounded-xl p-4 border border-amber-800/30">
+                  <div className="flex items-center gap-3">
+                    <User className="w-5 h-5 text-amber-400" />
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm">Sauvegardez votre progression</div>
+                      <div className="text-xs text-gray-400">
+                        Créez un compte pour ne pas perdre vos données
+                      </div>
+                    </div>
+                  </div>
+                  <CyberButton
+                    variant="primary"
+                    onClick={handleSignInRedirect}
+                    className="w-full mt-3"
+                    size="sm"
+                  >
+                    Créer un compte
+                  </CyberButton>
+                </div>
+              )}
             </div>
           </motion.div>
         </div>
@@ -538,9 +704,11 @@ export default function ProgressPage() {
                 <Calendar className="w-6 h-6 text-blue-400" />
                 Activité récente
               </h2>
-              <button className="text-sm text-gray-400 hover:text-white transition-colors">
-                Voir l'historique complet
-              </button>
+              {!stats.isGuest && (
+                <button className="text-sm text-gray-400 hover:text-white transition-colors">
+                  Voir l'historique complet
+                </button>
+              )}
             </div>
             
             <div className="bg-gray-900/50 rounded-xl border border-gray-800 overflow-hidden">
@@ -593,14 +761,17 @@ export default function ProgressPage() {
                   </div>
                   <h3 className="font-semibold mb-2">Aucune activité récente</h3>
                   <p className="text-gray-400 text-sm mb-4">
-                    Commencez un scénario pour voir votre activité ici
+                    {stats.isGuest 
+                      ? 'Commencez un scénario en mode invité'
+                      : 'Commencez un scénario pour voir votre activité ici'
+                    }
                   </p>
                   <CyberButton
                     variant="primary"
                     onClick={() => router.push('/scenarios')}
                     size="sm"
                   >
-                    Commencer un scénario
+                    {stats.isGuest ? 'Essayer un scénario' : 'Commencer un scénario'}
                   </CyberButton>
                 </div>
               )}
@@ -684,8 +855,19 @@ export default function ProgressPage() {
               className="w-full mt-6"
               icon={<Target className="w-5 h-5" />}
             >
-              Reprendre l'entraînement
+              {stats.isGuest ? 'Tester un scénario' : 'Reprendre l\'entraînement'}
             </CyberButton>
+
+            {stats.isGuest && (
+              <CyberButton
+                variant="primary"
+                onClick={handleSignInRedirect}
+                className="w-full mt-3"
+                icon={<User className="w-5 h-5" />}
+              >
+                Sauvegarder la progression
+              </CyberButton>
+            )}
           </motion.div>
         </div>
 
@@ -698,9 +880,14 @@ export default function ProgressPage() {
         >
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-6">
             <div>
-              <h2 className="text-2xl font-bold mb-2">Recommandations personnalisées</h2>
+              <h2 className="text-2xl font-bold mb-2">
+                {stats.isGuest ? 'Continuer en mode invité' : 'Recommandations personnalisées'}
+              </h2>
               <p className="text-gray-400">
-                Basé sur votre progression et vos performances
+                {stats.isGuest 
+                  ? 'Profitez de l\'expérience complète sans créer de compte'
+                  : 'Basé sur votre progression et vos performances'
+                }
               </p>
             </div>
             
@@ -766,19 +953,87 @@ export default function ProgressPage() {
                   <Award className="w-5 h-5 text-amber-400" />
                 </div>
                 <div>
-                  <div className="font-semibold">Badges à débloquer</div>
+                  <div className="font-semibold">
+                    {stats.isGuest ? 'Sauvegarder' : 'Badges à débloquer'}
+                  </div>
                   <div className="text-sm text-gray-400">
-                    {availableBadges.length - stats.badgesCount} restants
+                    {stats.isGuest 
+                      ? 'Créez un compte gratuitement'
+                      : `${availableBadges.length - stats.badgesCount} restants`
+                    }
                   </div>
                 </div>
               </div>
-              <CyberButton
-                variant="outline"
-                onClick={() => router.push('/progress')}
-                className="w-full"
-              >
-                Voir les objectifs
-              </CyberButton>
+              {stats.isGuest ? (
+                <CyberButton
+                  variant="primary"
+                  onClick={handleSignInRedirect}
+                  className="w-full"
+                >
+                  Créer un compte
+                </CyberButton>
+              ) : (
+                <CyberButton
+                  variant="outline"
+                  onClick={() => router.push('/progress')}
+                  className="w-full"
+                >
+                  Voir les objectifs
+                </CyberButton>
+              )}
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Footer avec actions */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.7 }}
+          className="mt-12 pt-8 border-t border-gray-800"
+        >
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="text-sm text-gray-400">
+              {stats.isGuest 
+                ? 'Votre progression est stockée localement dans votre navigateur'
+                : 'Votre progression est sauvegardée sur nos serveurs sécurisés'
+              }
+            </div>
+            
+            <div className="flex gap-4">
+              {stats.isGuest ? (
+                <>
+                  <CyberButton
+                    variant="outline"
+                    onClick={handleExportProgress}
+                    icon={<TrendingUp className="w-4 h-4" />}
+                  >
+                    Exporter
+                  </CyberButton>
+                  <CyberButton
+                    variant="primary"
+                    onClick={handleSignInRedirect}
+                    icon={<User className="w-4 h-4" />}
+                  >
+                    Sauvegarder
+                  </CyberButton>
+                </>
+              ) : (
+                <>
+                  <CyberButton
+                    variant="outline"
+                    onClick={() => router.push('/settings')}
+                  >
+                    Paramètres
+                  </CyberButton>
+                  <CyberButton
+                    variant="primary"
+                    onClick={() => router.push('/scenarios')}
+                  >
+                    Continuer l'entraînement
+                  </CyberButton>
+                </>
+              )}
             </div>
           </div>
         </motion.div>

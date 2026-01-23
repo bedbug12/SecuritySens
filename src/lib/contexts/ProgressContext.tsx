@@ -1,7 +1,7 @@
 // lib/contexts/ProgressContext.tsx
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 
 // Types
@@ -201,60 +201,74 @@ export function ProgressProvider({ children }: ProgressProviderProps) {
     return newBadges;
   };
 
-  // Compléter un scénario
-  const completeScenario = async (scenarioId: string, score: number, timeSpent?: number) => {
-    const newProgress = { ...userProgress };
-    
-    // Mettre à jour la progression locale
-    newProgress.completedScenarios = [...new Set([...newProgress.completedScenarios, scenarioId])];
-    newProgress.vigilanceScore = Math.min(100, Math.max(0, 
-      calculateNewVigilanceScore(newProgress.vigilanceScore, score)
-    ));
-    newProgress.consecutiveCorrect = score >= 80 ? newProgress.consecutiveCorrect + 1 : 0;
-    newProgress.xp += Math.round(score / 10);
-    newProgress.level = Math.floor(newProgress.xp / 100) + 1;
-    newProgress.lastPlayed = new Date();
+ // Modifiez la fonction completeScenario pour ne plus faire de calculs métier :
 
-    // Vérifier les badges
-    const unlockedBadges = checkBadgeUnlocks(newProgress, score);
-    newProgress.badges = [...new Set([...newProgress.badges, ...unlockedBadges])];
+const completeScenario = async (scenarioId: string, score: number, timeSpent?: number) => {
+  // Cette fonction ne doit PLUS faire de calculs métier
+  // Elle appelle simplement l'API qui est la source de vérité
+  
+  try {
+    const response = await fetch('/api/user/scenario-score', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scenarioId,
+        score,
+        timeSpent: timeSpent || 0
+      }),
+    });
 
-    // Sauvegarder le score du scénario
-    if (session?.user?.id) {
-      try {
-        await fetch('/api/user/scenario-score', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            scenarioId,
-            score,
-            timeSpent: timeSpent || 0
-          }),
-        });
-      } catch (error) {
-        console.error('Error saving scenario score:', error);
-      }
+    if (response.ok) {
+      const data = await response.json();
+      // Mettre à jour l'état local avec la réponse du serveur
+      setUserProgress(data.progress);
     }
-
-    // Mettre à jour l'état local
-    setUserProgress(newProgress);
+  } catch (error) {
+    console.error('Error in completeScenario:', error);
     
-    // Sauvegarder la progression
-    await saveProgress(newProgress);
-  };
+    // Mode invité : logique locale simplifiée
+    if (!session?.user?.id) {
+      const newProgress = { ...userProgress };
+      newProgress.completedScenarios = [...new Set([...newProgress.completedScenarios, scenarioId])];
+      newProgress.lastPlayed = new Date();
+      setUserProgress(newProgress);
+      localStorage.setItem('security-sense-progress-guest', JSON.stringify(newProgress));
+    }
+  }
+};
 
-  // Compléter un jeu
-  const completeGame = async (score: number) => {
-    const newProgress = {
-      ...userProgress,
-      gamesPlayed: userProgress.gamesPlayed + 1,
-      xp: userProgress.xp + Math.round(score / 20),
-      lastPlayed: new Date()
-    };
+// Modifiez la fonction completeGame de la même manière :
 
-    setUserProgress(newProgress);
-    await saveProgress(newProgress);
-  };
+const completeGame = async (score: number) => {
+  try {
+    const response = await fetch('/api/user/progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        score,
+        gamesPlayed: userProgress.gamesPlayed + 1,
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      setUserProgress(data.progress);
+    }
+  } catch (error) {
+    console.error('Error in completeGame:', error);
+    
+    // Mode invité
+    if (!session?.user?.id) {
+      const newProgress = {
+        ...userProgress,
+        gamesPlayed: userProgress.gamesPlayed + 1,
+        lastPlayed: new Date()
+      };
+      setUserProgress(newProgress);
+      localStorage.setItem('security-sense-progress-guest', JSON.stringify(newProgress));
+    }
+  }
+};
 
   // Ajouter un badge manuellement
   const addBadge = async (badgeId: string) => {
@@ -320,6 +334,26 @@ export function ProgressProvider({ children }: ProgressProviderProps) {
       xpToNext
     };
   };
+  const syncWithServer = useCallback(async () => {
+  try {
+    const response = await fetch('/api/user/progress', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userProgress),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      setUserProgress(data);
+      console.log('Progress synchronized with server');
+    }
+  } catch (error) {
+    console.error('Error syncing progress:', error);
+  }
+}, [userProgress]);
+
 
   // Valeur du contexte
   const contextValue: ProgressContextType = {
@@ -331,7 +365,8 @@ export function ProgressProvider({ children }: ProgressProviderProps) {
     updateVigilanceScore,
     getProgressPercentage,
     getLevelProgress,
-    isLoading
+    isLoading,
+    
   };
 
   return (

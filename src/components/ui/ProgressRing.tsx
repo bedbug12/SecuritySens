@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useSession } from 'next-auth/react'; // <-- AJOUTER CET IMPORT
 
 interface ProgressRingProps {
   progress: number;
@@ -9,6 +10,7 @@ interface ProgressRingProps {
   label?: string;
   showPercentage?: boolean;
   gradient?: boolean;
+  isGuestMode?: boolean; // <-- NOUVEAU PROP
 }
 
 const ProgressRing = ({
@@ -17,8 +19,12 @@ const ProgressRing = ({
   strokeWidth = 10,
   label,
   showPercentage = true,
-  gradient = true
+  gradient = true,
+  isGuestMode = false // <-- NOUVEAU PROP
 }: ProgressRingProps) => {
+  
+  const { data: session } = useSession();
+  const isGuest = isGuestMode || !session?.user;
   
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
@@ -86,6 +92,15 @@ const ProgressRing = ({
           <span className="text-xs text-gray-400 mt-1">{label}</span>
         )}
       </div>
+      
+      {/* Mode invité indicator */}
+      {isGuest && (
+        <div className="absolute -top-2 -right-2">
+          <div className="px-2 py-1 text-xs bg-amber-400/20 text-amber-400 rounded-full border border-amber-400/30">
+            Invité
+          </div>
+        </div>
+      )}
       
       {/* Outer glow effect */}
       {progress >= 80 && (

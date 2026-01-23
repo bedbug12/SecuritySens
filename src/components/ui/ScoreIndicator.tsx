@@ -2,20 +2,28 @@
 
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { useSession } from 'next-auth/react'; // <-- AJOUTER CET IMPORT
 
 interface ScoreIndicatorProps {
   score: number;
   previousScore?: number;
   showLabel?: boolean;
   size?: 'sm' | 'md' | 'lg';
+  isGuestMode?: boolean; // <-- NOUVEAU PROP
 }
 
 const ScoreIndicator = ({ 
   score, 
   previousScore, 
   showLabel = true,
-  size = 'md'
+  size = 'md',
+  isGuestMode = false // <-- NOUVEAU PROP PAR DÉFAUT
 }: ScoreIndicatorProps) => {
+  
+  const { data: session } = useSession();
+  
+  // Déterminer si on est en mode invité
+  const isGuest = isGuestMode || !session?.user;
   
   const sizeStyles = {
     sm: 'text-lg',
@@ -59,6 +67,17 @@ const ScoreIndicator = ({
         
         {showLabel && (
           <span className="text-gray-400 text-sm mb-1">/100</span>
+        )}
+        
+        {/* Indicateur mode invité */}
+        {isGuest && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="px-2 py-1 text-xs bg-amber-400/10 text-amber-400 rounded-full"
+          >
+            Mode invité
+          </motion.div>
         )}
         
         {trend && (
@@ -109,6 +128,29 @@ const ScoreIndicator = ({
           ))}
         </div>
       </div>
+      
+      {/* Message de conseil */}
+      {score < 60 && !isGuest && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="mt-2 text-xs text-amber-400"
+        >
+          Continuez à vous entraîner pour améliorer votre score !
+        </motion.div>
+      )}
+      
+      {isGuest && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="mt-2 text-xs text-blue-400"
+        >
+          Connectez-vous pour sauvegarder votre progression
+        </motion.div>
+      )}
     </div>
   );
 };

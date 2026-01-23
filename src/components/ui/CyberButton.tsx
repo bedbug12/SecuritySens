@@ -9,6 +9,7 @@ interface CyberButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   icon?: React.ReactNode;
   iconPosition?: 'left' | 'right';
   loading?: boolean;
+  pending?: boolean; // <-- NOUVEAU PROP pour les sauvegardes
   glow?: boolean;
 }
 
@@ -23,6 +24,7 @@ const CyberButton = forwardRef<HTMLButtonElement, CombinedProps>(
     icon, 
     iconPosition = 'left',
     loading = false,
+    pending = false, // <-- NOUVEAU PROP
     glow = false,
     className = '',
     disabled,
@@ -61,9 +63,10 @@ const CyberButton = forwardRef<HTMLButtonElement, CombinedProps>(
       <motion.button
         ref={ref}
         className={`${baseStyles} ${sizeStyles[size]} ${variantStyles[variant]} ${glowEffect} ${className}`}
-        disabled={disabled || loading}
+        disabled={disabled || loading || pending} // <-- INCLURE pending
         {...restProps}
       >
+        {/* Loading spinner */}
         {loading && (
           <motion.div
             animate={{ rotate: 360 }}
@@ -72,14 +75,34 @@ const CyberButton = forwardRef<HTMLButtonElement, CombinedProps>(
           />
         )}
         
-        {!loading && icon && iconPosition === 'left' && icon}
-        <span className="whitespace-nowrap">{children}</span>
-        {!loading && icon && iconPosition === 'right' && icon}
+        {/* Pending state (pour les sauvegardes) */}
+        {pending && !loading && (
+          <motion.div
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+            className="w-4 h-4 bg-blue-400 rounded-full"
+          />
+        )}
+        
+        {!loading && !pending && icon && iconPosition === 'left' && icon}
+        <span className="whitespace-nowrap">
+          {pending ? 'Sauvegarde...' : children}
+        </span>
+        {!loading && !pending && icon && iconPosition === 'right' && icon}
         
         {/* Cyber effect */}
         <div className="absolute inset-0 rounded-lg overflow-hidden opacity-0 hover:opacity-100 transition-opacity">
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
         </div>
+        
+        {/* Pending border animation */}
+        {pending && (
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            className="absolute inset-0 rounded-lg border-2 border-transparent border-t-blue-400 border-r-emerald-400"
+          />
+        )}
       </motion.button>
     );
   }
