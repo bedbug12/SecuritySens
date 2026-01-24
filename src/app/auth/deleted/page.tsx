@@ -6,10 +6,7 @@ import Link from 'next/link';
 import { CheckCircle, Home, UserPlus } from 'lucide-react';
 import { CyberButton } from '@/components/ui/CyberButton';
 
-export const metadata: Metadata = {
-  title: 'Compte supprimé',
-  robots: 'noindex, nofollow', // Empêcher l'indexation
-};
+
 
 export default function AccountDeletedPage() {
   return (
