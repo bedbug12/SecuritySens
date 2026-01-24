@@ -60,7 +60,7 @@ export function TrueFalseGame({ onAnswer }: TrueFalseGameProps) {
     
     setTimeout(() => {
       nextQuestion();
-    }, 2000);
+    }, 6000);
   };
 
   const handleSkip = () => {
