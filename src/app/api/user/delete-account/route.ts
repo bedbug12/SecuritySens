@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import type { PrismaClient } from '@prisma/client';
 
 export async function POST() {
   try {
@@ -30,7 +29,8 @@ export async function POST() {
     console.log(`Suppression du compte: ${user.email} (${user.id})`);
 
     // Transaction pour supprimer toutes les données associées
-    await prisma.$transaction(async (tx: PrismaClient) => {
+    // Pour Prisma v5+, utiliser Prisma.TransactionClient
+    await prisma.$transaction(async (tx) => {
       // Supprimer les scores de scénarios
       await tx.scenarioScore.deleteMany({
         where: { userId: session.user.id },
@@ -55,6 +55,10 @@ export async function POST() {
       await tx.user.delete({
         where: { id: session.user.id },
       });
+    }, {
+      // Options de transaction (optionnel)
+      maxWait: 5000,
+      timeout: 10000,
     });
 
     // Journalisation de la suppression
