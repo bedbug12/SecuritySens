@@ -1,4 +1,6 @@
 // app/auth/deleted/page.tsx
+'use client';
+
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { CheckCircle, Home, UserPlus } from 'lucide-react';
