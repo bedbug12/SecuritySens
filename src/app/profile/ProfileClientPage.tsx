@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { motion } from 'framer-motion';
 import {
   User,
@@ -16,23 +16,29 @@ import {
   Bell,
   Globe,
   Lock,
-  CreditCard,
   Download,
-  Upload,
   Trash2,
-  CheckCircle
+  CheckCircle,
+  AlertTriangle,
+  LogOut,
+  Settings as SettingsIcon
 } from 'lucide-react';
 import { CyberButton } from '@/components/ui/CyberButton';
 import { AlertBadge } from '@/components/ui/AlertBadge';
 import { ProgressRing } from '@/components/ui/ProgressRing';
 import { useProgress } from '@/lib/contexts/ProgressContext';
+import { useRouter } from 'next/navigation';
 
 export default function ProfileClientPage() {
   const { data: session, update } = useSession();
   const { userProgress } = useProgress();
+  const router = useRouter();
   
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [formData, setFormData] = useState({
     name: session?.user?.name || '',
     email: session?.user?.email || '',
@@ -103,6 +109,120 @@ export default function ProfileClientPage() {
     URL.revokeObjectURL(url);
   };
 
+  // Fonction pour supprimer le compte
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmation !== 'SUPPRIMER') {
+      // showNotification('Veuillez taper "SUPPRIMER" pour confirmer', 'error');
+      return;
+    }
+
+    setDeletingAccount(true);
+    try {
+      const response = await fetch('/api/user/delete-account', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Erreur lors de la suppression');
+      }
+
+      // Déconnexion de l'utilisateur
+      await signOut({ 
+        redirect: false,
+        callbackUrl: '/auth/signin?deleted=true'
+      });
+
+      // Redirection vers la page d'accueil
+      router.push('/auth/signin?deleted=true');
+      
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      // showNotification('Erreur lors de la suppression du compte', 'error');
+    } finally {
+      setDeletingAccount(false);
+      setShowDeleteConfirm(false);
+      setDeleteConfirmation('');
+    }
+  };
+
+  // Modal de confirmation de suppression
+  const renderDeleteConfirmationModal = () => {
+    if (!showDeleteConfirm) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-gradient-to-br from-gray-900 to-gray-950 rounded-2xl border border-red-800/50 p-8 max-w-md w-full"
+        >
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-8 h-8 text-red-400" />
+            </div>
+            
+            <h3 className="text-2xl font-bold mb-2">Supprimer votre compte</h3>
+            <p className="text-gray-400 mb-4">
+              Cette action est irréversible. Toutes vos données seront définitivement supprimées.
+            </p>
+            
+            <div className="bg-red-900/20 rounded-xl p-4 border border-red-800/30 mb-6">
+              <h4 className="font-semibold text-red-400 mb-2">⚠️ Attention</h4>
+              <ul className="text-sm text-gray-400 space-y-1">
+                <li>• Votre progression sera perdue</li>
+                <li>• Vos scores seront effacés</li>
+                <li>• Vos badges seront supprimés</li>
+                <li>• Cette action ne peut pas être annulée</li>
+              </ul>
+            </div>
+            
+            <div className="mb-6">
+              <label className="block text-sm text-gray-400 mb-2">
+                Tapez <span className="font-bold text-red-400">SUPPRIMER</span> pour confirmer
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-center"
+                placeholder="SUPPRIMER"
+                autoFocus
+              />
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-4">
+              <CyberButton
+                variant="outline"
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setDeleteConfirmation('');
+                }}
+                className="flex-1"
+              >
+                Annuler
+              </CyberButton>
+              
+              <CyberButton
+                variant="danger"
+                onClick={handleDeleteAccount}
+                loading={deletingAccount}
+                disabled={deleteConfirmation !== 'SUPPRIMER' || deletingAccount}
+                className="flex-1"
+                icon={<Trash2 className="w-5 h-5" />}
+              >
+                {deletingAccount ? 'Suppression...' : 'Supprimer définitivement'}
+              </CyberButton>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
@@ -130,9 +250,7 @@ export default function ProfileClientPage() {
               <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-8">
                 <div className="relative">
                   <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center">
-                   
-                      <User className="w-12 h-12 text-white" />
-                  
+                    <User className="w-12 h-12 text-white" />
                   </div>
                   <button className="absolute bottom-0 right-0 p-2 bg-gray-800 rounded-full border border-gray-700 hover:bg-gray-700 transition-colors">
                     <Camera className="w-4 h-4" />
@@ -367,17 +485,49 @@ export default function ProfileClientPage() {
               </div>
               
               <div className="mt-8 pt-8 border-t border-gray-800">
-                <div className="flex flex-col sm:flex-row gap-4">
+                <div className="mb-6">
+                  <h4 className="font-bold text-lg mb-4 flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-red-400" />
+                    Zone dangereuse
+                  </h4>
+                  <p className="text-sm text-gray-400 mb-4">
+                    Ces actions sont permanentes et ne peuvent pas être annulées.
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <CyberButton
                     variant="outline"
                     onClick={handleExportData}
                     icon={<Download className="w-5 h-5" />}
+                    className="w-full"
                   >
                     Exporter mes données
                   </CyberButton>
+                  
+                  <CyberButton
+                    variant="outline"
+                    onClick={() => router.push('/settings')}
+                    icon={<SettingsIcon className="w-5 h-5" />}
+                    className="w-full"
+                  >
+                    Paramètres avancés
+                  </CyberButton>
+                  
+                  <CyberButton
+                    variant="outline"
+                    onClick={() => signOut({ callbackUrl: '/auth/signin' })}
+                    icon={<LogOut className="w-5 h-5" />}
+                    className="w-full"
+                  >
+                    Se déconnecter
+                  </CyberButton>
+                  
                   <CyberButton
                     variant="danger"
+                    onClick={() => setShowDeleteConfirm(true)}
                     icon={<Trash2 className="w-5 h-5" />}
+                    className="w-full"
                   >
                     Supprimer mon compte
                   </CyberButton>
@@ -530,6 +680,9 @@ export default function ProfileClientPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal de confirmation de suppression */}
+      {renderDeleteConfirmationModal()}
     </div>
   );
 }

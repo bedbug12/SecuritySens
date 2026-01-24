@@ -6,6 +6,8 @@ export default withAuth(
   function middleware(req) {
     const token = req.nextauth.token;
     const pathname = req.nextUrl.pathname;
+    const url = new URL(req.url);
+    const searchParams = url.searchParams; 
 
     // Routes publiques
     const publicPaths = [
@@ -29,6 +31,11 @@ export default withAuth(
     // Si l'utilisateur n'est pas connecté et tente d'accéder à une route protégée
     if (!token && !publicPaths.some(path => pathname.startsWith(path))) {
       return NextResponse.redirect(new URL("/landingpage", req.url));
+    }
+    // Dans votre middleware.ts
+    // Ajouter cette redirection après la suppression
+    if (pathname === '/auth/signin' && searchParams.get('deleted') === 'true') {
+      return NextResponse.redirect(new URL('/auth/deleted', req.url));
     }
 
     return NextResponse.next();
